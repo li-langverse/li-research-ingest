@@ -1,29 +1,38 @@
 #!/usr/bin/env bash
-# Phase 3 — arXiv CS/ML OAI metadata → /warm-index/staging/arxiv
+# arXiv OAI metadata → /warm-index/staging/arxiv (full corpus or configured sets)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=install-runtime-deps.sh
+source "$SCRIPT_DIR/install-runtime-deps.sh"
 # shellcheck source=lib/paths.sh
 source "$SCRIPT_DIR/lib/paths.sh"
+# shellcheck source=lib/oai-xml.sh
+source "$SCRIPT_DIR/lib/oai-xml.sh"
+# shellcheck source=lib/arxiv-full-harvest.sh
+source "$SCRIPT_DIR/lib/arxiv-full-harvest.sh"
 
 usage() {
   cat <<'EOF'
 Usage: ingest-arxiv-oai.sh [--bootstrap] [--set SPEC] [--max-records N]
 
   --bootstrap     Create staging tree + empty harvest manifest
-  --set SPEC      OAI setSpec (default: all CS/ML sets from config)
-  --max-records   Stop after N records per set (smoke / partial ingest)
+  --full          Force full-repository harvest (no setSpec)
+  --set SPEC      OAI setSpec (default: sets from config when scope=sets)
+  --max-records   Stop after N records (per set or full corpus)
 EOF
 }
 
 BOOTSTRAP=0
 MAX_RECORDS=0
 SET_OVERRIDE=""
+FORCE_FULL=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --bootstrap) BOOTSTRAP=1; shift ;;
+    --full) FORCE_FULL=1; shift ;;
     --set)
       SET_OVERRIDE="${2:?--set requires a value}"
       shift 2
@@ -54,7 +63,15 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
 fi
 
 require_cmd curl
-require_cmd xmllint
+
+if [[ "$FORCE_FULL" -eq 1 || "${ARXIV_FULL_CORPUS:-0}" == "1" ]]; then
+  if ! command -v xmllint >/dev/null 2>&1; then
+    require_cmd python3
+    log "xmllint not found — using python3 XML fallback for OAI harvest"
+  fi
+  harvest_arxiv_full_corpus "$MAX_RECORDS"
+  exit 0
+fi
 
 mapfile -t ARXIV_SETS < <(toml_array_values arxiv sets)
 if [[ -n "$SET_OVERRIDE" ]]; then
@@ -64,6 +81,16 @@ fi
 if [[ "${#ARXIV_SETS[@]}" -eq 0 ]]; then
   echo "no arXiv OAI sets configured" >&2
   exit 1
+fi
+
+if arxiv_harvest_complete ARXIV_SETS; then
+  log "skip arXiv OAI — harvest already complete"
+  exit 0
+fi
+
+if ! command -v xmllint >/dev/null 2>&1; then
+  require_cmd python3
+  log "xmllint not found — using python3 XML fallback for OAI harvest"
 fi
 
 harvest_set() {
@@ -96,14 +123,14 @@ harvest_set() {
     curl -fsSL --retry 3 --retry-delay 5 -o "$tmp" "$query"
 
     local page_records=0
-    page_records="$(xmllint --xpath 'count(//*[local-name()="record"])' "$tmp" 2>/dev/null || echo 0)"
+    page_records="$(oai_count_records "$tmp")"
     page_records=$((page_records + 0))
     if [[ "$page_records" -gt 0 ]]; then
-      xmllint --xpath '//*[local-name()="ListRecords"]/*[local-name()="record"]' "$tmp" >>"$out_file.part" 2>/dev/null || cat "$tmp" >>"$out_file.part"
+      oai_append_records "$tmp" "$out_file.part"
       total_records=$((total_records + page_records))
     fi
 
-    token="$(xmllint --xpath 'string(//*[local-name()="resumptionToken")' "$tmp" 2>/dev/null || true)"
+    token="$(oai_resumption_token "$tmp")"
     rm -f "$tmp"
 
     if [[ "$MAX_RECORDS" -gt 0 && "$total_records" -ge "$MAX_RECORDS" ]]; then

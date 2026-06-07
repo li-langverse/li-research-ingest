@@ -61,6 +61,59 @@ _s2_api_key_candidate_paths() {
       "${LI_SECRETS_DIR}/S2_API_KEY" \
       "${LI_SECRETS_DIR}/li-research/s2-api-key"
   fi
+  # Goal workspace secrets (engine pod / agent supervisor drop-in).
+  if [[ -n "${LI_GOAL_WORKSPACE:-}" ]]; then
+    printf '%s\n' \
+      "${LI_GOAL_WORKSPACE}/.secrets/s2-api-key" \
+      "${LI_GOAL_WORKSPACE}/.secrets/S2_API_KEY" \
+      "${LI_GOAL_WORKSPACE}/.secrets/li-research/s2-api-key" \
+      "${LI_GOAL_WORKSPACE}/li-research-ingest/.secrets/s2-api-key" \
+      "${LI_GOAL_WORKSPACE}/li-research-ingest/.secrets/S2_API_KEY" \
+      "${LI_GOAL_WORKSPACE}/li-research-ingest/.secrets/li-research/s2-api-key"
+  fi
+  # Repo checkout drop-in (local dev / isolated agent clone).
+  if [[ -n "${REPO_ROOT:-}" ]]; then
+    printf '%s\n' \
+      "${REPO_ROOT}/.secrets/s2-api-key" \
+      "${REPO_ROOT}/.secrets/S2_API_KEY" \
+      "${REPO_ROOT}/.secrets/li-research/s2-api-key"
+  fi
+  # Isolated agent workspace (li-cursor-agents repo-workflow clone).
+  if [[ -n "${LI_REPO_WORKFLOW_WORKSPACE:-}" ]]; then
+    local ws_parent ws_grandparent ws_org
+    ws_parent="$(dirname "$LI_REPO_WORKFLOW_WORKSPACE")"
+    ws_grandparent="$(dirname "$ws_parent")"
+    ws_org="$(dirname "$ws_grandparent")"
+    printf '%s\n' \
+      "${ws_parent}/.secrets/s2-api-key" \
+      "${ws_parent}/.secrets/S2_API_KEY" \
+      "${ws_parent}/.secrets/li-research/s2-api-key" \
+      "${ws_grandparent}/.secrets/s2-api-key" \
+      "${ws_grandparent}/.secrets/li-research/s2-api-key" \
+      "${ws_org}/.secrets/s2-api-key" \
+      "${ws_org}/.secrets/S2_API_KEY" \
+      "${ws_org}/.secrets/li-research/s2-api-key"
+  fi
+  # Warm-index mount drop-in (engine pod — secrets beside staging data).
+  if [[ -n "${WARM_INDEX_PATH:-}" ]]; then
+    printf '%s\n' \
+      "${WARM_INDEX_PATH}/.secrets/s2-api-key" \
+      "${WARM_INDEX_PATH}/.secrets/S2_API_KEY" \
+      "${WARM_INDEX_PATH}/.secrets/li-research/s2-api-key"
+  fi
+  # Homelab host paths (engine pod bind-mount or operator drop-in).
+  printf '%s\n' \
+    /srv/homelab/nvme/li-research/.secrets/s2-api-key \
+    /srv/homelab/nvme/li-research/warm-index/.secrets/s2-api-key \
+    /srv/homelab/intenso-research/li-research/.secrets/s2-api-key \
+    /srv/homelab/intenso-research/li-research/warm-index/.secrets/s2-api-key
+  # Control plane / cursor-agents drop-in (org supervisor secrets).
+  if [[ -n "${LI_CURSOR_AGENTS_ROOT:-}" ]]; then
+    printf '%s\n' \
+      "${LI_CURSOR_AGENTS_ROOT}/.secrets/s2-api-key" \
+      "${LI_CURSOR_AGENTS_ROOT}/.secrets/S2_API_KEY" \
+      "${LI_CURSOR_AGENTS_ROOT}/.secrets/li-research/s2-api-key"
+  fi
   # Common K8s / Vault mount paths on the engine pod (no env required).
   printf '%s\n' \
     /run/secrets/s2-api-key \
@@ -103,7 +156,22 @@ export S2_CITATIONS_DIR="${S2_CITATIONS_DIR:-${WARM_INDEX_STAGING}/s2/citations}
 export ARXIV_OAI_ENDPOINT="${ARXIV_OAI_ENDPOINT:-$(toml_section_value arxiv oai_endpoint)}"
 export ARXIV_METADATA_PREFIX="${ARXIV_METADATA_PREFIX:-$(toml_section_value arxiv metadata_prefix)}"
 export ARXIV_OUTPUT_DIR="${ARXIV_OUTPUT_DIR:-${WARM_INDEX_STAGING}/arxiv}"
+export ARXIV_SCOPE="${ARXIV_SCOPE:-$(toml_section_value arxiv scope)}"
+export ARXIV_FULL_OUTPUT_DIR="${ARXIV_FULL_OUTPUT_DIR:-$(toml_section_value arxiv full_output)}"
 export ARXIV_REQUEST_INTERVAL="${ARXIV_REQUEST_INTERVAL:-$(toml_section_value arxiv request_interval_sec)}"
+if [[ -z "${ARXIV_FULL_CORPUS:-}" ]]; then
+  if [[ "${ARXIV_SCOPE:-}" == "full" ]]; then
+    export ARXIV_FULL_CORPUS=1
+  else
+    export ARXIV_FULL_CORPUS=0
+  fi
+fi
+
+export OPENALEX_API_BASE="${OPENALEX_API_BASE:-$(toml_section_value openalex api_base)}"
+export OPENALEX_WORKS_FILTER="${OPENALEX_WORKS_FILTER:-$(toml_section_value openalex works_filter)}"
+export OPENALEX_PER_PAGE="${OPENALEX_PER_PAGE:-$(toml_section_value openalex per_page)}"
+export OPENALEX_OUTPUT_DIR="${OPENALEX_OUTPUT_DIR:-${WARM_INDEX_STAGING}/openalex}"
+export OPENALEX_REQUEST_INTERVAL_SEC="${OPENALEX_REQUEST_INTERVAL_SEC:-$(toml_section_value openalex request_interval_sec)}"
 
 export LIDB_SCHEMA_MIGRATION="${LIDB_SCHEMA_MIGRATION:-$(toml_section_value lidb schema_migration)}"
 export LIDB_LOADER_STUB_DIR="${LIDB_LOADER_STUB_DIR:-${WARM_INDEX_STAGING}/lidb-load}"
@@ -115,6 +183,8 @@ ensure_staging_tree() {
     "$S2_PAPERS_DIR" \
     "$S2_CITATIONS_DIR" \
     "$ARXIV_OUTPUT_DIR" \
+    "$ARXIV_FULL_OUTPUT_DIR" \
+    "$OPENALEX_OUTPUT_DIR" \
     "$LIDB_LOADER_STUB_DIR"
 }
 

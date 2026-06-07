@@ -1,5 +1,5 @@
 # Warm-index dataset paths — mounted on engine pod at /warm-index
-# Host: /srv/homelab/intenso-research/li-research/warm-index (second Intenso)
+# Host: /srv/homelab/nvme/li-research/warm-index (engine NVMe)
 
 [warm_index]
 root = "/warm-index"
@@ -19,11 +19,21 @@ citations = "/warm-index/staging/s2/citations"
 [arxiv]
 oai_endpoint = "http://export.arxiv.org/oai2"
 metadata_prefix = "arXiv"
-# CS + ML OAI sets (see https://arxiv.org/help/oa)
+# scope: "full" = entire arXiv OAI repository; "sets" = listed setSpecs only
+scope = "full"
 sets = ["cs:cs:AI", "cs:cs:LG", "cs:cs:CL", "stat:stat:ML"]
 output = "/warm-index/staging/arxiv"
+full_output = "/warm-index/staging/arxiv/full/pages"
 # arXiv policy: at most one OAI request every 3 seconds
 request_interval_sec = 3
+
+[openalex]
+api_base = "https://api.openalex.org"
+# Computer Science field (public REST, mailto polite pool)
+works_filter = "topics.field.id:17"
+per_page = 200
+output = "/warm-index/staging/openalex"
+request_interval_sec = 1
 
 [lidb]
 schema_migration = "006_research.sql"

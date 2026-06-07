@@ -1,0 +1,29 @@
+# Strategic-merge patch: mount S2_API_KEY on the live li-research-ingest deployment.
+# Container name is "agent" (goal-directed worker), not a standalone ingest image.
+# Apply after s2-api-key-secret.yaml (see deploy/k8s/README.md).
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: li-research-ingest
+  namespace: li-swarm
+spec:
+  template:
+    spec:
+      containers:
+        - name: agent
+          env:
+            - name: S2_API_KEY_FILE
+              value: /run/secrets/s2-api-key
+          volumeMounts:
+            - name: s2-api-key
+              mountPath: /run/secrets/s2-api-key
+              subPath: s2-api-key
+              readOnly: true
+      volumes:
+        - name: s2-api-key
+          secret:
+            secretName: li-research-s2-api-key
+            items:
+              - key: s2-api-key
+                path: s2-api-key

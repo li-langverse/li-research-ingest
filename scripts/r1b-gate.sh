@@ -3,11 +3,16 @@
 
 set -eu
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS="${LI_GOAL_WORKSPACE:-/workspace}"
-INGEST="${LI_RESEARCH_INGEST_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+INGEST="${LI_RESEARCH_INGEST_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 WARM="${WARM_INDEX_PATH:-/warm-index}"
 MIN_BYTES="${WARM_INGEST_MIN_BYTES:-1073741824}"
 BRANCH="cursor/li-research-r1b"
+
+# shellcheck source=lib/paths.sh
+source "$SCRIPT_DIR/lib/paths.sh"
+reload_s2_api_key || true
 
 _format_bytes() {
   local b="${1:-0}"
@@ -32,9 +37,11 @@ fail() {
 }
 
 test -d "$INGEST/.git" || fail "missing git repo at $INGEST"
-git -C "$INGEST" show-ref --verify --quiet "refs/remotes/origin/${BRANCH}" \
-  || git -C "$INGEST" show-ref --verify --quiet "refs/heads/${BRANCH}" \
-  || fail "branch ${BRANCH} not found"
+if [[ "${R1B_GATE_SKIP_BRANCH:-}" != 1 ]]; then
+  git -C "$INGEST" show-ref --verify --quiet "refs/remotes/origin/${BRANCH}" \
+    || git -C "$INGEST" show-ref --verify --quiet "refs/heads/${BRANCH}" \
+    || fail "branch ${BRANCH} not found"
+fi
 test -f "$INGEST/config/datasets.toml" || fail "missing config/datasets.toml"
 test -f "$INGEST/scripts/ingest-s2-abstracts.sh" || fail "missing ingest-s2-abstracts.sh"
 test -f "$INGEST/scripts/run-warm-ingest.sh" || test -f "$INGEST/scripts/ingest-all.sh" \

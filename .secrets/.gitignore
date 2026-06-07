@@ -1,0 +1,4 @@
+# Operator drop-in for S2_API_KEY (never commit the key file).
+*
+!.gitignore
+!README.md

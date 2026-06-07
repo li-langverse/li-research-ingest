@@ -25,6 +25,7 @@ Target corpus: **100–200 GB** under `/warm-index/staging/` (abstracts first, t
     │   ├── papers/               # S2 papers metadata
     │   └── citations/            # reserved for citation-edge subset
     ├── arxiv/                    # OAI ListRecords XML per CS/ML set
+    ├── openalex/               # OpenAlex works JSONL (CS field, public REST)
     └── lidb-load/
         └── load-plan.json        # loader stub manifest
 ```
@@ -38,12 +39,16 @@ Paths are defined in [`config/datasets.toml`](config/datasets.toml). Override wi
 | `S2_API_KEY` | Semantic Scholar Datasets API (`x-api-key` header). **Required for R1b ≥1 GiB gate.** Obtain at [Semantic Scholar API](https://www.semanticscholar.org/product/api). |
 | `S2_API_KEY_FILE` | Path to a mounted secret file containing the API key (used when `S2_API_KEY` is unset). Auto-probed: `/run/secrets/s2-api-key`, `/run/secrets/S2_API_KEY`, `/run/secrets/li-research/s2-api-key`, … |
 | `LI_SECRETS_DIR` | Optional homelab secrets directory; auto-probes `$LI_SECRETS_DIR/s2-api-key` and `$LI_SECRETS_DIR/li-research/s2-api-key`. |
+| `LI_GOAL_WORKSPACE` | When set, also probes `$LI_GOAL_WORKSPACE/.secrets/s2-api-key` (supervisor drop-in). |
+| Repo `.secrets/` | Probes `$LI_RESEARCH_INGEST_ROOT/.secrets/s2-api-key` for local / agent-clone drop-in. |
 
 ### Blocker: `S2_API_KEY` not wired
 
 When `S2_API_KEY` is unset, scripts retry public sample paths (`--samples` / ai2-s2ag/samples) for smoke testing. Samples are **far below** the 1 GiB gate. Export `S2_API_KEY` on the engine pod (Vault wiring pending) and re-run.
 
-**K8s wiring example** (engine pod, second Intenso mount): [`deploy/k8s/s2-api-key-secret.example.yaml`](deploy/k8s/s2-api-key-secret.example.yaml) — mounts the key at `/run/secrets/s2-api-key` (auto-probed by `paths.sh`). Tracked in [#6](https://github.com/li-langverse/li-research-ingest/issues/6).
+**K8s wiring** (engine pod, second Intenso mount): [`deploy/k8s/README.md`](deploy/k8s/README.md) — apply `s2-api-key-secret.yaml` + `li-research-ingest-s2-patch.yaml` to mount `/run/secrets/s2-api-key` (auto-probed by `paths.sh`). Operator helper: `./scripts/operator-wire-s2-key.sh`. Tracked in [#6](https://github.com/li-langverse/li-research-ingest/issues/6).
+
+**Current blocker (verified code_implementer-1780832549229, 2026-06-07):** `/warm-index` mounted (~869 GiB avail per `agent-r1b-pass.sh` `warm_index_disk.avail_bytes=932329148416`); `S2_API_KEY` absent from env and all 33 probed secret paths (`s2_api_key.probed_paths` in agent JSON; see `discover-s2-key.sh`). Staging/s2 remains sample-only (31,680 B, 0% of 1 GiB gate). arXiv OAI complete (~11 MiB, 4 sets). Operator must apply `deploy/k8s/s2-api-key-secret.yaml` + patch per [#6](https://github.com/li-langverse/li-research-ingest/issues/6), or drop in `.secrets/s2-api-key` at repo, run workspace, org workspace (`data/workspaces/li-langverse/.secrets/`), warm-index mount (`/warm-index/.secrets/s2-api-key`), or homelab path (see [`.secrets/README.md`](.secrets/README.md)). Re-run `./scripts/unblock-r1b.sh` or `./scripts/agent-r1b-pass.sh --wait-for-key 3600` after wiring the secret. Agent pods without `jq`/`xmllint` auto-bootstrap via `scripts/install-runtime-deps.sh` (jq → `.deps/bin/`; arXiv uses python3 XML fallback). Tune bulk throughput with `S2_DOWNLOAD_PARALLEL` (default `2`). Supervisor traceability: `/warm-index/staging/.ingest-run-state.json` (`agent_run_id`) and `.agent-r1b-report.json` (last `agent-r1b-pass.sh` JSON with `phase_checklist`, `blocker`, `warm_index_disk`, `s2_api_key.probed_paths`, and `north_star_fit`).
 
 ```bash
 export S2_API_KEY=...
@@ -52,6 +57,41 @@ export S2_API_KEY=...
 ```
 
 arXiv OAI harvest runs without a key (3 s/request policy).
+
+## Public API warm index (no S2 key)
+
+Branch: `cursor/li-research-public-index` — build a warm index from **public APIs only**:
+
+1. **arXiv OAI** — CS/ML metadata (no key)
+2. **OpenAlex REST** — Computer Science works via polite pool (`OPENALEX_MAILTO`)
+
+No `S2_API_KEY` required. Gate target: **≥ 100 MiB** combined openalex+arxiv (`WARM_INGEST_MIN_BYTES`, default `104857600`).
+
+```bash
+export WARM_INDEX_PATH=/warm-index
+export WARM_INGEST_MODE=public
+export OPENALEX_MAILTO=you@example.com
+
+# Full public ingest (arXiv → OpenAlex until gate)
+./scripts/run-public-ingest.sh --resume
+
+# Layout only (smoke, no network)
+./scripts/run-public-ingest.sh --bootstrap
+
+# Gate check
+WARM_INDEX_PATH=/warm-index LI_RESEARCH_INGEST_ROOT=$PWD bash scripts/public-index-gate.sh
+```
+
+When `S2_API_KEY` is unset, `run-warm-ingest.sh` auto-falls back to the public path. Set `WARM_INGEST_FORCE_S2=1` to require S2 even without a key (will block on missing key).
+
+| Phase | Script | Output |
+|-------|--------|--------|
+| **runner** | **`scripts/run-public-ingest.sh`** | **orchestrates arXiv → OpenAlex + state** |
+| gate | `scripts/public-index-gate.sh` | ≥100 MiB openalex+arxiv + state file |
+| 1 | `scripts/ingest-arxiv-oai.sh` | `/warm-index/staging/arxiv` |
+| 2 | `scripts/ingest-openalex.sh` | `/warm-index/staging/openalex` |
+
+State file includes `ingest_mode: public` in `staging/.ingest-run-state.json`.
 
 ## Ingest scripts
 
@@ -63,6 +103,7 @@ arXiv OAI harvest runs without a key (3 s/request policy).
 | preflight | `scripts/preflight-r1b.sh` | key discovery + status + R1b gate in one pass |
 | gate loop | `scripts/gate-loop.sh` | poll `S2_API_KEY`, run ingest, retry until R1b gate passes |
 | **unblock** | **`scripts/unblock-r1b.sh`** | **operator entry — key discovery + gate-loop (default 1h key poll)** |
+| agent pass | `scripts/agent-r1b-pass.sh` | supervisor / code_implementer entry — JSON report + gate exit code |
 | key probe | `scripts/discover-s2-key.sh` | S2_API_KEY env + K8s secret mount diagnostics |
 | 1 | `scripts/ingest-s2-abstracts.sh` | `/warm-index/staging/s2/abstracts` |
 | 2 | `scripts/ingest-s2-papers.sh` | `/warm-index/staging/s2/papers` |
