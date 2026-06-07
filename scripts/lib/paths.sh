@@ -156,7 +156,16 @@ export S2_CITATIONS_DIR="${S2_CITATIONS_DIR:-${WARM_INDEX_STAGING}/s2/citations}
 export ARXIV_OAI_ENDPOINT="${ARXIV_OAI_ENDPOINT:-$(toml_section_value arxiv oai_endpoint)}"
 export ARXIV_METADATA_PREFIX="${ARXIV_METADATA_PREFIX:-$(toml_section_value arxiv metadata_prefix)}"
 export ARXIV_OUTPUT_DIR="${ARXIV_OUTPUT_DIR:-${WARM_INDEX_STAGING}/arxiv}"
+export ARXIV_SCOPE="${ARXIV_SCOPE:-$(toml_section_value arxiv scope)}"
+export ARXIV_FULL_OUTPUT_DIR="${ARXIV_FULL_OUTPUT_DIR:-$(toml_section_value arxiv full_output)}"
 export ARXIV_REQUEST_INTERVAL="${ARXIV_REQUEST_INTERVAL:-$(toml_section_value arxiv request_interval_sec)}"
+if [[ -z "${ARXIV_FULL_CORPUS:-}" ]]; then
+  if [[ "${ARXIV_SCOPE:-}" == "full" ]]; then
+    export ARXIV_FULL_CORPUS=1
+  else
+    export ARXIV_FULL_CORPUS=0
+  fi
+fi
 
 export OPENALEX_API_BASE="${OPENALEX_API_BASE:-$(toml_section_value openalex api_base)}"
 export OPENALEX_WORKS_FILTER="${OPENALEX_WORKS_FILTER:-$(toml_section_value openalex works_filter)}"
@@ -174,6 +183,7 @@ ensure_staging_tree() {
     "$S2_PAPERS_DIR" \
     "$S2_CITATIONS_DIR" \
     "$ARXIV_OUTPUT_DIR" \
+    "$ARXIV_FULL_OUTPUT_DIR" \
     "$OPENALEX_OUTPUT_DIR" \
     "$LIDB_LOADER_STUB_DIR"
 }

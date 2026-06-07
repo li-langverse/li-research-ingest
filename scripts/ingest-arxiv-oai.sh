@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 3 — arXiv CS/ML OAI metadata → /warm-index/staging/arxiv
+# arXiv OAI metadata → /warm-index/staging/arxiv (full corpus or configured sets)
 
 set -euo pipefail
 
@@ -10,24 +10,29 @@ source "$SCRIPT_DIR/install-runtime-deps.sh"
 source "$SCRIPT_DIR/lib/paths.sh"
 # shellcheck source=lib/oai-xml.sh
 source "$SCRIPT_DIR/lib/oai-xml.sh"
+# shellcheck source=lib/arxiv-full-harvest.sh
+source "$SCRIPT_DIR/lib/arxiv-full-harvest.sh"
 
 usage() {
   cat <<'EOF'
 Usage: ingest-arxiv-oai.sh [--bootstrap] [--set SPEC] [--max-records N]
 
   --bootstrap     Create staging tree + empty harvest manifest
-  --set SPEC      OAI setSpec (default: all CS/ML sets from config)
-  --max-records   Stop after N records per set (smoke / partial ingest)
+  --full          Force full-repository harvest (no setSpec)
+  --set SPEC      OAI setSpec (default: sets from config when scope=sets)
+  --max-records   Stop after N records (per set or full corpus)
 EOF
 }
 
 BOOTSTRAP=0
 MAX_RECORDS=0
 SET_OVERRIDE=""
+FORCE_FULL=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --bootstrap) BOOTSTRAP=1; shift ;;
+    --full) FORCE_FULL=1; shift ;;
     --set)
       SET_OVERRIDE="${2:?--set requires a value}"
       shift 2
@@ -59,6 +64,15 @@ fi
 
 require_cmd curl
 
+if [[ "$FORCE_FULL" -eq 1 || "${ARXIV_FULL_CORPUS:-0}" == "1" ]]; then
+  if ! command -v xmllint >/dev/null 2>&1; then
+    require_cmd python3
+    log "xmllint not found — using python3 XML fallback for OAI harvest"
+  fi
+  harvest_arxiv_full_corpus "$MAX_RECORDS"
+  exit 0
+fi
+
 mapfile -t ARXIV_SETS < <(toml_array_values arxiv sets)
 if [[ -n "$SET_OVERRIDE" ]]; then
   ARXIV_SETS=("$SET_OVERRIDE")
@@ -69,8 +83,8 @@ if [[ "${#ARXIV_SETS[@]}" -eq 0 ]]; then
   exit 1
 fi
 
-if arxiv_sets_all_complete ARXIV_SETS; then
-  log "skip arXiv OAI — all configured sets complete"
+if arxiv_harvest_complete ARXIV_SETS; then
+  log "skip arXiv OAI — harvest already complete"
   exit 0
 fi
 

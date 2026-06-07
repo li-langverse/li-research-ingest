@@ -49,6 +49,16 @@ _arxiv_status() {
     echo pending
     return
   fi
+  if [[ "${ARXIV_FULL_CORPUS:-0}" == "1" ]]; then
+    if [[ -f "$ARXIV_OUTPUT_DIR/full/.full.ok" ]]; then
+      echo complete
+    elif [[ -d "${ARXIV_FULL_OUTPUT_DIR}" ]] && [[ "$(_count_data_files "${ARXIV_FULL_OUTPUT_DIR}")" -gt 0 ]]; then
+      echo partial
+    else
+      echo pending
+    fi
+    return
+  fi
   local markers total=0 done=0
   mapfile -t sets < <(toml_array_values arxiv sets)
   for set_spec in "${sets[@]}"; do
@@ -184,6 +194,7 @@ write_staging_manifest() {
   add_partition_files "$S2_ABSTRACTS_DIR" "s2_abstracts"
   add_partition_files "$S2_PAPERS_DIR" "s2_papers"
   add_partition_files "$ARXIV_OUTPUT_DIR" "arxiv_oai"
+  add_partition_files "${ARXIV_FULL_OUTPUT_DIR}" "arxiv_full_oai"
   add_partition_files "${OPENALEX_OUTPUT_DIR:-${WARM_INDEX_STAGING}/openalex}" "openalex_works"
 
   local joined=""

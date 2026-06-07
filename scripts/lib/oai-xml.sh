@@ -76,6 +76,18 @@ for el in root.iter():
 PY
 }
 
+arxiv_full_harvest_complete() {
+  [[ -f "$ARXIV_OUTPUT_DIR/full/.full.ok" ]]
+}
+
+arxiv_harvest_complete() {
+  if [[ "${ARXIV_FULL_CORPUS:-0}" == "1" ]]; then
+    arxiv_full_harvest_complete
+    return
+  fi
+  arxiv_sets_all_complete "$@"
+}
+
 arxiv_sets_all_complete() {
   local sets_ref_name="$1"
   local -n sets_ref="$sets_ref_name"

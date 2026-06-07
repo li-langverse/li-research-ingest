@@ -19,9 +19,11 @@ citations = "/warm-index/staging/s2/citations"
 [arxiv]
 oai_endpoint = "http://export.arxiv.org/oai2"
 metadata_prefix = "arXiv"
-# CS + ML OAI sets (see https://arxiv.org/help/oa)
+# scope: "full" = entire arXiv OAI repository; "sets" = listed setSpecs only
+scope = "full"
 sets = ["cs:cs:AI", "cs:cs:LG", "cs:cs:CL", "stat:stat:ML"]
 output = "/warm-index/staging/arxiv"
+full_output = "/warm-index/staging/arxiv/full/pages"
 # arXiv policy: at most one OAI request every 3 seconds
 request_interval_sec = 3
 
