@@ -22,7 +22,11 @@ EOF
 }
 
 WAIT_FOR_KEY_SEC="${AGENT_R1B_WAIT_KEY_SEC:-0}"
-RUN_ID="${LI_AGENT_RUN_ID:-unknown}"
+RUN_ID="${LI_AGENT_RUN_ID:-}"
+if [[ -z "$RUN_ID" && -n "${LI_REPO_WORKFLOW_WORKSPACE:-}" ]]; then
+  RUN_ID="$(basename "$(dirname "$LI_REPO_WORKFLOW_WORKSPACE")")"
+fi
+RUN_ID="${RUN_ID:-unknown}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
