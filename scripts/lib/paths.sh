@@ -94,10 +94,19 @@ _s2_api_key_candidate_paths() {
       "${ws_org}/.secrets/S2_API_KEY" \
       "${ws_org}/.secrets/li-research/s2-api-key"
   fi
+  # Warm-index mount drop-in (engine pod — secrets beside staging data).
+  if [[ -n "${WARM_INDEX_PATH:-}" ]]; then
+    printf '%s\n' \
+      "${WARM_INDEX_PATH}/.secrets/s2-api-key" \
+      "${WARM_INDEX_PATH}/.secrets/S2_API_KEY" \
+      "${WARM_INDEX_PATH}/.secrets/li-research/s2-api-key"
+  fi
   # Homelab host paths (engine pod bind-mount or operator drop-in).
   printf '%s\n' \
     /srv/homelab/nvme/li-research/.secrets/s2-api-key \
-    /srv/homelab/intenso-research/li-research/.secrets/s2-api-key
+    /srv/homelab/nvme/li-research/warm-index/.secrets/s2-api-key \
+    /srv/homelab/intenso-research/li-research/.secrets/s2-api-key \
+    /srv/homelab/intenso-research/li-research/warm-index/.secrets/s2-api-key
   # Control plane / cursor-agents drop-in (org supervisor secrets).
   if [[ -n "${LI_CURSOR_AGENTS_ROOT:-}" ]]; then
     printf '%s\n' \

@@ -6,7 +6,7 @@ Place your Semantic Scholar Datasets API key in one of these files (gitignored):
 .secrets/s2-api-key
 ```
 
-Also probed (no commit): run workspace `.secrets/`, org workspace `data/workspaces/li-langverse/.secrets/s2-api-key`, homelab `/srv/homelab/nvme/li-research/.secrets/s2-api-key`, K8s `/run/secrets/s2-api-key`.
+Also probed (no commit): run workspace `.secrets/`, org workspace `data/workspaces/li-langverse/.secrets/s2-api-key`, warm-index mount `/warm-index/.secrets/s2-api-key`, homelab `/srv/homelab/nvme/li-research/.secrets/s2-api-key` (and `…/warm-index/.secrets/`), K8s `/run/secrets/s2-api-key`.
 
 Or set `S2_API_KEY` in the environment. Scripts auto-probe these paths via `paths.sh`.
 
