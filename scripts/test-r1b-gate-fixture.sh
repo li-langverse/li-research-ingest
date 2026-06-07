@@ -23,6 +23,8 @@ dd if=/dev/zero of="$ABSTRACTS/partition-000.jsonl.gz" bs=1024 count="$((MIN_BYT
 export WARM_INDEX_PATH="$FIXTURE_ROOT"
 export WARM_INGEST_MIN_BYTES="$MIN_BYTES"
 export LI_RESEARCH_INGEST_ROOT="$REPO_ROOT"
+# PR merge checkouts in CI are detached HEAD — skip branch ref probe.
+export R1B_GATE_SKIP_BRANCH=1
 
 # shellcheck source=lib/paths.sh
 source "$SCRIPT_DIR/lib/paths.sh"
