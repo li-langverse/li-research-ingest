@@ -5,11 +5,13 @@ on:
     branches:
       - cursor/li-research-r1b
       - cursor/li-research-r0
+      - cursor/li-research-public-index
       - main
   pull_request:
     branches:
       - cursor/li-research-r1b
       - cursor/li-research-r0
+      - cursor/li-research-public-index
       - main
 
 jobs:
@@ -43,3 +45,6 @@ jobs:
 
       - name: R1b agent report schema (temp warm-index, no network)
         run: bash scripts/test-agent-r1b-report.sh
+
+      - name: Public index gate fixture (temp warm-index, no network)
+        run: bash scripts/test-public-index-gate-fixture.sh

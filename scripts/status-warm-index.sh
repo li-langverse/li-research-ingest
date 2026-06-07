@@ -28,9 +28,22 @@ s2_bytes() {
 
 bytes_s2="$(s2_bytes)"
 bytes_arxiv="$(_dir_bytes "$ARXIV_OUTPUT_DIR")"
+bytes_openalex="$(_dir_bytes "${OPENALEX_OUTPUT_DIR:-${WARM_INDEX_STAGING}/openalex}")"
+ingest_mode="${WARM_INGEST_MODE:-s2}"
+if [[ "$ingest_mode" == "public" ]] || { [[ -z "${S2_API_KEY:-}" ]] && [[ "${WARM_INGEST_FORCE_S2:-}" != "1" ]]; }; then
+  ingest_mode=public
+fi
+
 gate_pct=0
-if [[ "$MIN_BYTES" -gt 0 ]]; then
-  gate_pct=$((bytes_s2 * 100 / MIN_BYTES))
+if [[ "$ingest_mode" == "public" ]]; then
+  bytes_public=$((bytes_openalex + bytes_arxiv))
+  if [[ "$MIN_BYTES" -gt 0 ]]; then
+    gate_pct=$((bytes_public * 100 / MIN_BYTES))
+  fi
+else
+  if [[ "$MIN_BYTES" -gt 0 ]]; then
+    gate_pct=$((bytes_s2 * 100 / MIN_BYTES))
+  fi
 fi
 
 key_status="missing"
@@ -38,7 +51,14 @@ reload_s2_api_key && key_status="present"
 
 printf 'warm-index status (%s)\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 printf '  root:        %s\n' "$WARM_INDEX_ROOT"
-printf '  staging/s2:  %s bytes (%s%% of %s gate)\n' "$bytes_s2" "$gate_pct" "$MIN_BYTES"
+printf '  ingest_mode: %s\n' "$ingest_mode"
+if [[ "$ingest_mode" == "public" ]]; then
+  printf '  public:      %s bytes (%s%% of %s gate — openalex+arxiv)\n' \
+    "$((bytes_openalex + bytes_arxiv))" "$gate_pct" "$MIN_BYTES"
+  printf '  staging/openalex: %s bytes\n' "$bytes_openalex"
+else
+  printf '  staging/s2:  %s bytes (%s%% of %s gate)\n' "$bytes_s2" "$gate_pct" "$MIN_BYTES"
+fi
 printf '  staging/arxiv: %s bytes\n' "$bytes_arxiv"
 printf '  S2_API_KEY:  %s' "$key_status"
 [[ -n "${S2_API_KEY_FILE:-}" ]] && printf ' (file=%s)' "$S2_API_KEY_FILE"
@@ -54,13 +74,26 @@ fi
 
 if command -v du >/dev/null 2>&1; then
   printf '\nDisk usage:\n'
-  du -sh "$WARM_INDEX_STAGING" "$S2_ABSTRACTS_DIR" "$S2_PAPERS_DIR" "$ARXIV_OUTPUT_DIR" 2>/dev/null \
+  du -sh "$WARM_INDEX_STAGING" "$S2_ABSTRACTS_DIR" "$S2_PAPERS_DIR" "$ARXIV_OUTPUT_DIR" \
+    "${OPENALEX_OUTPUT_DIR:-${WARM_INDEX_STAGING}/openalex}" 2>/dev/null \
     | sed 's/^/  /' || true
 fi
 
 if command -v df >/dev/null 2>&1 && [[ -d "$WARM_INDEX_ROOT" ]]; then
   printf '\nFilesystem (warm-index mount):\n'
   df -h "$WARM_INDEX_ROOT" 2>/dev/null | sed 's/^/  /' || true
+fi
+
+if [[ "$ingest_mode" == "public" ]]; then
+  bytes_public=$((bytes_openalex + bytes_arxiv))
+  if [[ "$bytes_public" -lt "$MIN_BYTES" ]]; then
+    printf '\nPublic index gate: NOT MET (%s / %s bytes)\n' "$bytes_public" "$MIN_BYTES"
+    printf '  unblock: export OPENALEX_MAILTO=you@example.com\n'
+    printf '           ./scripts/run-public-ingest.sh --resume\n'
+    exit 1
+  fi
+  printf '\nPublic index gate: MET (%s bytes openalex+arxiv)\n' "$bytes_public"
+  exit 0
 fi
 
 if [[ "$bytes_s2" -lt "$MIN_BYTES" ]]; then

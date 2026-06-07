@@ -18,9 +18,11 @@ fail() {
 }
 
 test -d "$INGEST/.git" || fail "missing git repo"
-git -C "$INGEST" show-ref --verify --quiet "refs/remotes/origin/${BRANCH}" \
-  || git -C "$INGEST" show-ref --verify --quiet "refs/heads/${BRANCH}" \
-  || fail "branch ${BRANCH} not found"
+if [[ "${PUBLIC_INDEX_GATE_SKIP_BRANCH:-}" != 1 ]]; then
+  git -C "$INGEST" show-ref --verify --quiet "refs/remotes/origin/${BRANCH}" \
+    || git -C "$INGEST" show-ref --verify --quiet "refs/heads/${BRANCH}" \
+    || fail "branch ${BRANCH} not found"
+fi
 
 test -f "$INGEST/scripts/ingest-openalex.sh" || fail "missing ingest-openalex.sh"
 test -f "$INGEST/scripts/ingest-arxiv-oai.sh" || fail "missing ingest-arxiv-oai.sh"

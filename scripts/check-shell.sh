@@ -22,5 +22,8 @@ test -f "$REPO_ROOT/scripts/ingest-all.sh"
 test -f "$REPO_ROOT/scripts/r1b-gate.sh"
 test -f "$REPO_ROOT/scripts/test-r1b-gate-fixture.sh"
 test -f "$REPO_ROOT/scripts/test-agent-r1b-report.sh"
+test -f "$REPO_ROOT/scripts/run-public-ingest.sh"
+test -f "$REPO_ROOT/scripts/public-index-gate.sh"
+test -f "$REPO_ROOT/scripts/test-public-index-gate-fixture.sh"
 
 echo "shell-check: OK (${#scripts[@]} scripts)"

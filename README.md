@@ -25,6 +25,7 @@ Target corpus: **100–200 GB** under `/warm-index/staging/` (abstracts first, t
     │   ├── papers/               # S2 papers metadata
     │   └── citations/            # reserved for citation-edge subset
     ├── arxiv/                    # OAI ListRecords XML per CS/ML set
+    ├── openalex/               # OpenAlex works JSONL (CS field, public REST)
     └── lidb-load/
         └── load-plan.json        # loader stub manifest
 ```
@@ -56,6 +57,41 @@ export S2_API_KEY=...
 ```
 
 arXiv OAI harvest runs without a key (3 s/request policy).
+
+## Public API warm index (no S2 key)
+
+Branch: `cursor/li-research-public-index` — build a warm index from **public APIs only**:
+
+1. **arXiv OAI** — CS/ML metadata (no key)
+2. **OpenAlex REST** — Computer Science works via polite pool (`OPENALEX_MAILTO`)
+
+No `S2_API_KEY` required. Gate target: **≥ 100 MiB** combined openalex+arxiv (`WARM_INGEST_MIN_BYTES`, default `104857600`).
+
+```bash
+export WARM_INDEX_PATH=/warm-index
+export WARM_INGEST_MODE=public
+export OPENALEX_MAILTO=you@example.com
+
+# Full public ingest (arXiv → OpenAlex until gate)
+./scripts/run-public-ingest.sh --resume
+
+# Layout only (smoke, no network)
+./scripts/run-public-ingest.sh --bootstrap
+
+# Gate check
+WARM_INDEX_PATH=/warm-index LI_RESEARCH_INGEST_ROOT=$PWD bash scripts/public-index-gate.sh
+```
+
+When `S2_API_KEY` is unset, `run-warm-ingest.sh` auto-falls back to the public path. Set `WARM_INGEST_FORCE_S2=1` to require S2 even without a key (will block on missing key).
+
+| Phase | Script | Output |
+|-------|--------|--------|
+| **runner** | **`scripts/run-public-ingest.sh`** | **orchestrates arXiv → OpenAlex + state** |
+| gate | `scripts/public-index-gate.sh` | ≥100 MiB openalex+arxiv + state file |
+| 1 | `scripts/ingest-arxiv-oai.sh` | `/warm-index/staging/arxiv` |
+| 2 | `scripts/ingest-openalex.sh` | `/warm-index/staging/openalex` |
+
+State file includes `ingest_mode: public` in `staging/.ingest-run-state.json`.
 
 ## Ingest scripts
 
