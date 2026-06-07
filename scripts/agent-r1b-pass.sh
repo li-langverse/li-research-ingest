@@ -117,6 +117,7 @@ report_json="$(jq -n \
     agent_run_id: $run_id,
     updated_at: $updated_at,
     warm_index_root: $warm_index_root,
+    north_star_fit: "research ingest / warm-index corpus (PH-RES-1 — resume-safe state, proof-before-perf)",
     s2_api_key: { status: $key_status, source: $key_source },
     bytes: { s2: $bytes_s2, min_bytes_gate: $min_bytes_gate },
     gate_passed: $gate_passed,

@@ -15,7 +15,8 @@
     "preflight-r1b": "bash scripts/preflight-r1b.sh",
     "gate-loop": "bash scripts/gate-loop.sh --once",
     "agent-r1b-pass": "bash scripts/agent-r1b-pass.sh",
-    "test-r1b-gate-fixture": "bash scripts/test-r1b-gate-fixture.sh"
+    "test-r1b-gate-fixture": "bash scripts/test-r1b-gate-fixture.sh",
+    "test-agent-r1b-report": "bash scripts/test-agent-r1b-report.sh"
   },
   "engines": {
     "node": ">=22"

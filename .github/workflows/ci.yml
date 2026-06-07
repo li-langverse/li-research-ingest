@@ -40,3 +40,6 @@ jobs:
 
       - name: R1b gate fixture (temp warm-index, no network)
         run: bash scripts/test-r1b-gate-fixture.sh
+
+      - name: R1b agent report schema (temp warm-index, no network)
+        run: bash scripts/test-agent-r1b-report.sh
