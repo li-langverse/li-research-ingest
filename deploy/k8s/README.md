@@ -21,7 +21,7 @@ kubectl rollout restart deployment/li-research-ingest -n li-swarm
 
 Use the files below when patching a **live** deployment without re-applying the full li-cursor-agents manifest.
 
-## Verified state (code_implementer-1780821138771)
+## Verified state (code_implementer-1780833883224)
 
 Live `deployment/li-research-ingest` in `li-swarm` mounts `/warm-index` and `/workspace` but **does not** mount `S2_API_KEY` yet. Ingest scripts probe `/run/secrets/s2-api-key` — absent until the patch below is applied.
 

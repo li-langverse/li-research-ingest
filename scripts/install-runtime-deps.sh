@@ -32,21 +32,34 @@ _ensure_jq() {
   require_curl
   mkdir -p "$DEPS_BIN"
 
-  local arch url
-  arch="$(uname -m)"
-  case "$arch" in
-    x86_64 | amd64) url="https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-linux-amd64" ;;
-    aarch64 | arm64) url="https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-linux-arm64" ;;
-    *)
-      echo "install-runtime-deps: unsupported arch for jq bootstrap: $arch" >&2
-      return 1
-      ;;
-  esac
+  local lock="$DEPS_BIN/.jq-bootstrap.lock"
+  (
+    flock -x 200
+    if [[ -x "$DEPS_BIN/jq" ]]; then
+      exit 0
+    fi
 
-  _log "bootstrapping jq ${JQ_VERSION} → $DEPS_BIN/jq"
-  curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$DEPS_BIN/jq.part"
-  chmod +x "$DEPS_BIN/jq.part"
-  mv "$DEPS_BIN/jq.part" "$DEPS_BIN/jq"
+    local arch url
+    arch="$(uname -m)"
+    case "$arch" in
+      x86_64 | amd64) url="https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-linux-amd64" ;;
+      aarch64 | arm64) url="https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-linux-arm64" ;;
+      *)
+        echo "install-runtime-deps: unsupported arch for jq bootstrap: $arch" >&2
+        exit 1
+        ;;
+    esac
+
+    _log "bootstrapping jq ${JQ_VERSION} → $DEPS_BIN/jq"
+    curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$DEPS_BIN/jq.part"
+    chmod +x "$DEPS_BIN/jq.part"
+    mv "$DEPS_BIN/jq.part" "$DEPS_BIN/jq"
+  ) 200>"$lock"
+
+  if [[ ! -x "$DEPS_BIN/jq" ]]; then
+    echo "install-runtime-deps: jq bootstrap failed" >&2
+    return 1
+  fi
   export PATH="$DEPS_BIN:$PATH"
 }
 

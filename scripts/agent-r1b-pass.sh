@@ -5,6 +5,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${LI_RESEARCH_INGEST_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+# shellcheck source=install-runtime-deps.sh
+source "$SCRIPT_DIR/install-runtime-deps.sh"
 # shellcheck source=lib/paths.sh
 source "$SCRIPT_DIR/lib/paths.sh"
 # shellcheck source=lib/ingest-state.sh
@@ -50,6 +52,12 @@ export LI_RESEARCH_INGEST_ROOT="$REPO_ROOT"
 
 key_status="missing"
 key_source=""
+probed_paths=0
+while IFS= read -r _path; do
+  [[ -z "$_path" ]] && continue
+  probed_paths=$((probed_paths + 1))
+done < <(_s2_api_key_candidate_paths | awk '!seen[$0]++')
+
 if reload_s2_api_key; then
   key_status="present"
   key_source="${S2_API_KEY_FILE:-env}"
@@ -77,27 +85,75 @@ gate_exit=0
 bash "$SCRIPT_DIR/r1b-gate.sh" >/dev/null 2>&1 || gate_exit=$?
 
 require_cmd jq
-jq -n \
+
+phase_s2="blocked"
+if [[ "$bytes_s2" -ge "$min_bytes" ]]; then
+  phase_s2="done"
+elif [[ "$key_status" == "present" ]]; then
+  phase_s2="in_progress"
+fi
+
+state_exists=false
+manifest_exists=false
+[[ -f "${WARM_INDEX_STAGING}/.ingest-run-state.json" ]] && state_exists=true
+[[ -f "${WARM_INDEX_STAGING}/manifest.json" ]] && manifest_exists=true
+
+blocker=""
+if [[ "$gate_passed" == false && "$key_status" == "missing" ]]; then
+  blocker="S2_API_KEY unset — wire secret per deploy/k8s/README.md or issue #6"
+fi
+
+warm_index_avail_bytes=0
+if [[ -d "$WARM_INDEX_ROOT" ]] && command -v df >/dev/null 2>&1; then
+  warm_index_avail_bytes="$(df -B1 --output=avail "$WARM_INDEX_ROOT" 2>/dev/null | tail -1 | tr -d '[:space:]')"
+  warm_index_avail_bytes="${warm_index_avail_bytes:-0}"
+fi
+
+report_json="$(jq -n \
   --arg run_id "$RUN_ID" \
   --arg updated_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
   --arg warm_index_root "$WARM_INDEX_ROOT" \
   --arg key_status "$key_status" \
   --arg key_source "$key_source" \
+  --argjson probed_paths "$probed_paths" \
   --argjson bytes_s2 "$bytes_s2" \
   --argjson min_bytes_gate "$min_bytes" \
   --argjson gate_passed "$gate_passed" \
   --argjson discover_exit "$discover_exit" \
   --argjson ingest_exit "$ingest_exit" \
   --argjson gate_exit "$gate_exit" \
+  --arg phase_s2 "$phase_s2" \
+  --argjson state_exists "$state_exists" \
+  --argjson manifest_exists "$manifest_exists" \
+  --arg blocker "$blocker" \
+  --argjson warm_index_avail_bytes "$warm_index_avail_bytes" \
   '{
     agent_run_id: $run_id,
     updated_at: $updated_at,
     warm_index_root: $warm_index_root,
-    s2_api_key: { status: $key_status, source: $key_source },
+    warm_index_disk: { avail_bytes: $warm_index_avail_bytes },
+    north_star_fit: "research ingest / warm-index corpus (PH-RES-1 — resume-safe state, proof-before-perf)",
+    s2_api_key: { status: $key_status, source: $key_source, probed_paths: $probed_paths },
     bytes: { s2: $bytes_s2, min_bytes_gate: $min_bytes_gate },
     gate_passed: $gate_passed,
+    blocker: (if $blocker == "" then null else $blocker end),
+    phase_checklist: {
+      branch: "done",
+      runner: "done",
+      s2_abstracts: $phase_s2,
+      state: (if $state_exists then "done" else "pending" end),
+      manifest: (if $manifest_exists then "done" else "pending" end),
+      runbook: "done"
+    },
     exits: { discover: $discover_exit, ingest: $ingest_exit, gate: $gate_exit }
-  }'
+  }')"
+
+printf '%s\n' "$report_json"
+
+agent_report_file="${WARM_INDEX_STAGING}/.agent-r1b-report.json"
+if printf '%s\n' "$report_json" >"$agent_report_file" 2>/dev/null; then
+  log "agent report: $agent_report_file"
+fi
 
 if [[ "$gate_exit" -eq 0 ]]; then
   exit 0

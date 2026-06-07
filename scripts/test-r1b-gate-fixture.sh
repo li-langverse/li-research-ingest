@@ -5,9 +5,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=install-runtime-deps.sh
 source "$SCRIPT_DIR/install-runtime-deps.sh"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FIXTURE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/li-r1b-gate-fixture.XXXXXX")"
 MIN_BYTES="${R1B_GATE_FIXTURE_MIN_BYTES:-2048}"
 

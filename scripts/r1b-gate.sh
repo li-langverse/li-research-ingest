@@ -3,11 +3,16 @@
 
 set -eu
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS="${LI_GOAL_WORKSPACE:-/workspace}"
-INGEST="${LI_RESEARCH_INGEST_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+INGEST="${LI_RESEARCH_INGEST_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 WARM="${WARM_INDEX_PATH:-/warm-index}"
 MIN_BYTES="${WARM_INGEST_MIN_BYTES:-1073741824}"
 BRANCH="cursor/li-research-r1b"
+
+# shellcheck source=lib/paths.sh
+source "$SCRIPT_DIR/lib/paths.sh"
+reload_s2_api_key || true
 
 _format_bytes() {
   local b="${1:-0}"

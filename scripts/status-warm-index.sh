@@ -4,6 +4,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=install-runtime-deps.sh
+source "$SCRIPT_DIR/install-runtime-deps.sh"
 # shellcheck source=lib/paths.sh
 source "$SCRIPT_DIR/lib/paths.sh"
 
@@ -46,12 +48,19 @@ if [[ -f "$INGEST_STATE_FILE" ]]; then
   printf '  state file:  %s\n' "$INGEST_STATE_FILE"
   jq -r '"  gate_passed: \(.gate_passed) | abstracts: \(.datasets.s2_abstracts.status) (\(.datasets.s2_abstracts.files) files)"' \
     "$INGEST_STATE_FILE" 2>/dev/null || true
+  jq -r 'if .agent_run_id then "  agent_run_id: \(.agent_run_id)" else empty end' \
+    "$INGEST_STATE_FILE" 2>/dev/null || true
 fi
 
 if command -v du >/dev/null 2>&1; then
   printf '\nDisk usage:\n'
   du -sh "$WARM_INDEX_STAGING" "$S2_ABSTRACTS_DIR" "$S2_PAPERS_DIR" "$ARXIV_OUTPUT_DIR" 2>/dev/null \
     | sed 's/^/  /' || true
+fi
+
+if command -v df >/dev/null 2>&1 && [[ -d "$WARM_INDEX_ROOT" ]]; then
+  printf '\nFilesystem (warm-index mount):\n'
+  df -h "$WARM_INDEX_ROOT" 2>/dev/null | sed 's/^/  /' || true
 fi
 
 if [[ "$bytes_s2" -lt "$MIN_BYTES" ]]; then

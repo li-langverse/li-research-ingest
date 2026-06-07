@@ -4,8 +4,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=install-runtime-deps.sh
+source "$SCRIPT_DIR/install-runtime-deps.sh"
 # shellcheck source=lib/paths.sh
 source "$SCRIPT_DIR/lib/paths.sh"
+# shellcheck source=lib/oai-xml.sh
+source "$SCRIPT_DIR/lib/oai-xml.sh"
 
 usage() {
   cat <<'EOF'
@@ -54,7 +58,6 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
 fi
 
 require_cmd curl
-require_cmd xmllint
 
 mapfile -t ARXIV_SETS < <(toml_array_values arxiv sets)
 if [[ -n "$SET_OVERRIDE" ]]; then
@@ -64,6 +67,16 @@ fi
 if [[ "${#ARXIV_SETS[@]}" -eq 0 ]]; then
   echo "no arXiv OAI sets configured" >&2
   exit 1
+fi
+
+if arxiv_sets_all_complete ARXIV_SETS; then
+  log "skip arXiv OAI — all configured sets complete"
+  exit 0
+fi
+
+if ! command -v xmllint >/dev/null 2>&1; then
+  require_cmd python3
+  log "xmllint not found — using python3 XML fallback for OAI harvest"
 fi
 
 harvest_set() {
@@ -96,14 +109,14 @@ harvest_set() {
     curl -fsSL --retry 3 --retry-delay 5 -o "$tmp" "$query"
 
     local page_records=0
-    page_records="$(xmllint --xpath 'count(//*[local-name()="record"])' "$tmp" 2>/dev/null || echo 0)"
+    page_records="$(oai_count_records "$tmp")"
     page_records=$((page_records + 0))
     if [[ "$page_records" -gt 0 ]]; then
-      xmllint --xpath '//*[local-name()="ListRecords"]/*[local-name()="record"]' "$tmp" >>"$out_file.part" 2>/dev/null || cat "$tmp" >>"$out_file.part"
+      oai_append_records "$tmp" "$out_file.part"
       total_records=$((total_records + page_records))
     fi
 
-    token="$(xmllint --xpath 'string(//*[local-name()="resumptionToken")' "$tmp" 2>/dev/null || true)"
+    token="$(oai_resumption_token "$tmp")"
     rm -f "$tmp"
 
     if [[ "$MAX_RECORDS" -gt 0 && "$total_records" -ge "$MAX_RECORDS" ]]; then
