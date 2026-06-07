@@ -38,12 +38,16 @@ Paths are defined in [`config/datasets.toml`](config/datasets.toml). Override wi
 | `S2_API_KEY` | Semantic Scholar Datasets API (`x-api-key` header). **Required for R1b ≥1 GiB gate.** Obtain at [Semantic Scholar API](https://www.semanticscholar.org/product/api). |
 | `S2_API_KEY_FILE` | Path to a mounted secret file containing the API key (used when `S2_API_KEY` is unset). Auto-probed: `/run/secrets/s2-api-key`, `/run/secrets/S2_API_KEY`, `/run/secrets/li-research/s2-api-key`, … |
 | `LI_SECRETS_DIR` | Optional homelab secrets directory; auto-probes `$LI_SECRETS_DIR/s2-api-key` and `$LI_SECRETS_DIR/li-research/s2-api-key`. |
+| `LI_GOAL_WORKSPACE` | When set, also probes `$LI_GOAL_WORKSPACE/.secrets/s2-api-key` (supervisor drop-in). |
+| Repo `.secrets/` | Probes `$LI_RESEARCH_INGEST_ROOT/.secrets/s2-api-key` for local / agent-clone drop-in. |
 
 ### Blocker: `S2_API_KEY` not wired
 
 When `S2_API_KEY` is unset, scripts retry public sample paths (`--samples` / ai2-s2ag/samples) for smoke testing. Samples are **far below** the 1 GiB gate. Export `S2_API_KEY` on the engine pod (Vault wiring pending) and re-run.
 
-**K8s wiring example** (engine pod, second Intenso mount): [`deploy/k8s/s2-api-key-secret.example.yaml`](deploy/k8s/s2-api-key-secret.example.yaml) — mounts the key at `/run/secrets/s2-api-key` (auto-probed by `paths.sh`). Tracked in [#6](https://github.com/li-langverse/li-research-ingest/issues/6).
+**K8s wiring** (engine pod, second Intenso mount): [`deploy/k8s/README.md`](deploy/k8s/README.md) — apply `s2-api-key-secret.yaml` + `li-research-ingest-s2-patch.yaml` to mount `/run/secrets/s2-api-key` (auto-probed by `paths.sh`). Operator helper: `./scripts/operator-wire-s2-key.sh`. Tracked in [#6](https://github.com/li-langverse/li-research-ingest/issues/6).
+
+**Current blocker (verified code_implementer-1780822484547, 2026-06-07):** `/warm-index` mounted; `S2_API_KEY` absent from env and all probed secret paths. Staging/s2 remains sample-only (31,680 B). arXiv OAI complete (~11 MiB). Operator must apply `deploy/k8s/s2-api-key-secret.yaml` + patch per [#6](https://github.com/li-langverse/li-research-ingest/issues/6), or drop in `.secrets/s2-api-key` (see [`.secrets/README.md`](.secrets/README.md)). Re-run `./scripts/unblock-r1b.sh` or `./scripts/agent-r1b-pass.sh --wait-for-key 60` after wiring the secret. Tune bulk throughput with `S2_DOWNLOAD_PARALLEL` (default `2`).
 
 ```bash
 export S2_API_KEY=...
@@ -63,6 +67,7 @@ arXiv OAI harvest runs without a key (3 s/request policy).
 | preflight | `scripts/preflight-r1b.sh` | key discovery + status + R1b gate in one pass |
 | gate loop | `scripts/gate-loop.sh` | poll `S2_API_KEY`, run ingest, retry until R1b gate passes |
 | **unblock** | **`scripts/unblock-r1b.sh`** | **operator entry — key discovery + gate-loop (default 1h key poll)** |
+| agent pass | `scripts/agent-r1b-pass.sh` | supervisor / code_implementer entry — JSON report + gate exit code |
 | key probe | `scripts/discover-s2-key.sh` | S2_API_KEY env + K8s secret mount diagnostics |
 | 1 | `scripts/ingest-s2-abstracts.sh` | `/warm-index/staging/s2/abstracts` |
 | 2 | `scripts/ingest-s2-papers.sh` | `/warm-index/staging/s2/papers` |

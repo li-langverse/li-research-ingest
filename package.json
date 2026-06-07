@@ -13,7 +13,9 @@
     "smoke-gate": "bash scripts/smoke-gate.sh",
     "r1b-gate": "bash scripts/r1b-gate.sh",
     "preflight-r1b": "bash scripts/preflight-r1b.sh",
-    "gate-loop": "bash scripts/gate-loop.sh --once"
+    "gate-loop": "bash scripts/gate-loop.sh --once",
+    "agent-r1b-pass": "bash scripts/agent-r1b-pass.sh",
+    "test-r1b-gate-fixture": "bash scripts/test-r1b-gate-fixture.sh"
   },
   "engines": {
     "node": ">=22"

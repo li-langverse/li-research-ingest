@@ -61,6 +61,35 @@ _s2_api_key_candidate_paths() {
       "${LI_SECRETS_DIR}/S2_API_KEY" \
       "${LI_SECRETS_DIR}/li-research/s2-api-key"
   fi
+  # Goal workspace secrets (engine pod / agent supervisor drop-in).
+  if [[ -n "${LI_GOAL_WORKSPACE:-}" ]]; then
+    printf '%s\n' \
+      "${LI_GOAL_WORKSPACE}/.secrets/s2-api-key" \
+      "${LI_GOAL_WORKSPACE}/.secrets/S2_API_KEY" \
+      "${LI_GOAL_WORKSPACE}/.secrets/li-research/s2-api-key" \
+      "${LI_GOAL_WORKSPACE}/li-research-ingest/.secrets/s2-api-key" \
+      "${LI_GOAL_WORKSPACE}/li-research-ingest/.secrets/S2_API_KEY" \
+      "${LI_GOAL_WORKSPACE}/li-research-ingest/.secrets/li-research/s2-api-key"
+  fi
+  # Repo checkout drop-in (local dev / isolated agent clone).
+  if [[ -n "${REPO_ROOT:-}" ]]; then
+    printf '%s\n' \
+      "${REPO_ROOT}/.secrets/s2-api-key" \
+      "${REPO_ROOT}/.secrets/S2_API_KEY" \
+      "${REPO_ROOT}/.secrets/li-research/s2-api-key"
+  fi
+  # Isolated agent workspace (li-cursor-agents repo-workflow clone).
+  if [[ -n "${LI_REPO_WORKFLOW_WORKSPACE:-}" ]]; then
+    local ws_parent ws_grandparent
+    ws_parent="$(dirname "$LI_REPO_WORKFLOW_WORKSPACE")"
+    ws_grandparent="$(dirname "$ws_parent")"
+    printf '%s\n' \
+      "${ws_parent}/.secrets/s2-api-key" \
+      "${ws_parent}/.secrets/S2_API_KEY" \
+      "${ws_parent}/.secrets/li-research/s2-api-key" \
+      "${ws_grandparent}/.secrets/s2-api-key" \
+      "${ws_grandparent}/.secrets/li-research/s2-api-key"
+  fi
   # Common K8s / Vault mount paths on the engine pod (no env required).
   printf '%s\n' \
     /run/secrets/s2-api-key \
