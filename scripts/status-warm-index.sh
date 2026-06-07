@@ -4,6 +4,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=install-runtime-deps.sh
+source "$SCRIPT_DIR/install-runtime-deps.sh"
 # shellcheck source=lib/paths.sh
 source "$SCRIPT_DIR/lib/paths.sh"
 
@@ -45,6 +47,8 @@ printf '\n'
 if [[ -f "$INGEST_STATE_FILE" ]]; then
   printf '  state file:  %s\n' "$INGEST_STATE_FILE"
   jq -r '"  gate_passed: \(.gate_passed) | abstracts: \(.datasets.s2_abstracts.status) (\(.datasets.s2_abstracts.files) files)"' \
+    "$INGEST_STATE_FILE" 2>/dev/null || true
+  jq -r 'if .agent_run_id then "  agent_run_id: \(.agent_run_id)" else empty end' \
     "$INGEST_STATE_FILE" 2>/dev/null || true
 fi
 
