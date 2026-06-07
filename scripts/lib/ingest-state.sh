@@ -87,6 +87,11 @@ write_ingest_run_state() {
   local s2_key_status="missing"
   [[ -n "${S2_API_KEY:-}" ]] && s2_key_status="present"
 
+  local agent_run_id="${LI_AGENT_RUN_ID:-}"
+  if [[ -z "$agent_run_id" && -n "${LI_REPO_WORKFLOW_WORKSPACE:-}" ]]; then
+    agent_run_id="$(basename "$(dirname "$LI_REPO_WORKFLOW_WORKSPACE")")"
+  fi
+
   local s2_abs_status s2_pap_status arx_status
   local abs_files pap_files arx_files
   s2_abs_status=$(_s2_release_marker abstracts "$S2_ABSTRACTS_DIR")
@@ -105,6 +110,7 @@ write_ingest_run_state() {
     --argjson min_bytes_gate "$min_bytes" \
     --argjson gate_passed "$gate_passed" \
     --arg s2_api_key "$s2_key_status" \
+    --arg agent_run_id "$agent_run_id" \
     --arg s2_abstracts_status "$s2_abs_status" \
     --arg s2_papers_status "$s2_pap_status" \
     --arg arxiv_status "$arx_status" \
@@ -118,6 +124,7 @@ write_ingest_run_state() {
       min_bytes_gate: $min_bytes_gate,
       gate_passed: $gate_passed,
       s2_api_key: $s2_api_key,
+      agent_run_id: (if $agent_run_id == "" then null else $agent_run_id end),
       datasets: {
         s2_abstracts: { status: $s2_abstracts_status, files: $s2_abstracts_files },
         s2_papers: { status: $s2_papers_status, files: $s2_papers_files },
