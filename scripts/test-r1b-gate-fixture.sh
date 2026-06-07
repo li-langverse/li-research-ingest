@@ -28,6 +28,12 @@ export LI_RESEARCH_INGEST_ROOT="$REPO_ROOT"
 # PR merge checkouts in CI are detached HEAD — skip branch ref probe.
 export R1B_GATE_SKIP_BRANCH=1
 
+# Shallow PR checkouts may not fetch origin/cursor/li-research-r1b; gate checks that ref.
+if ! git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/cursor/li-research-r1b" \
+  && ! git -C "$REPO_ROOT" show-ref --verify --quiet "refs/remotes/origin/cursor/li-research-r1b"; then
+  git -C "$REPO_ROOT" branch -f cursor/li-research-r1b HEAD
+fi
+
 # shellcheck source=lib/paths.sh
 source "$SCRIPT_DIR/lib/paths.sh"
 # shellcheck source=lib/ingest-state.sh

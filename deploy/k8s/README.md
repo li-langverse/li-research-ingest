@@ -1,6 +1,27 @@
 # Engine pod — R1b warm ingest wiring
 
-## Verified state (code_implementer-1780825325678)
+## Canonical deployment (li-cursor-agents)
+
+**Primary wiring** lives in `li-cursor-agents/deploy/k8s/engine/deployment-li-research-ingest.yaml` (merged via `scripts/deploy-li-research-workers-k8s.ps1`):
+
+- `S2_API_KEY_FILE=/run/secrets/s2-api-key` + `li-research-s2-api-key` secret volume
+- `WARM_INDEX_PATH=/warm-index` hostPath (second Intenso)
+- `LI_SECRETS_DIR=/srv/homelab/li-research/secrets` homelab drop-in
+
+Apply from `li-cursor-agents`:
+
+```bash
+# Edit placeholder in secret-li-research-s2-api-key.yaml first
+kubectl apply -f deploy/k8s/engine/secret-li-research-s2-api-key.yaml -n li-swarm
+kubectl apply -f deploy/k8s/engine/deployment-li-research-ingest.yaml -n li-swarm
+kubectl rollout restart deployment/li-research-ingest -n li-swarm
+```
+
+## Strategic-merge patch (this repo)
+
+Use the files below when patching a **live** deployment without re-applying the full li-cursor-agents manifest.
+
+## Verified state (code_implementer-1780833883224)
 
 Live `deployment/li-research-ingest` in `li-swarm` mounts `/warm-index` and `/workspace` but **does not** mount `S2_API_KEY` yet. Ingest scripts probe `/run/secrets/s2-api-key` — absent until the patch below is applied.
 
