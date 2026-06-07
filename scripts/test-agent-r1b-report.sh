@@ -62,6 +62,8 @@ jq -e '
   and (.bytes.s2 | type) == "number"
   and (.bytes.min_bytes_gate | type) == "number"
   and (.s2_api_key.status | type) == "string"
+  and (.s2_api_key.probed_paths | type) == "number"
+  and (.s2_api_key.probed_paths >= 1)
   and (.phase_checklist.branch == "done")
   and (.phase_checklist.runner == "done")
   and (.phase_checklist.s2_abstracts | IN("blocked", "in_progress", "done", "pending"))

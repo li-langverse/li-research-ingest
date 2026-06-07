@@ -52,6 +52,12 @@ export LI_RESEARCH_INGEST_ROOT="$REPO_ROOT"
 
 key_status="missing"
 key_source=""
+probed_paths=0
+while IFS= read -r _path; do
+  [[ -z "$_path" ]] && continue
+  probed_paths=$((probed_paths + 1))
+done < <(_s2_api_key_candidate_paths | awk '!seen[$0]++')
+
 if reload_s2_api_key; then
   key_status="present"
   key_source="${S2_API_KEY_FILE:-env}"
@@ -109,6 +115,7 @@ report_json="$(jq -n \
   --arg warm_index_root "$WARM_INDEX_ROOT" \
   --arg key_status "$key_status" \
   --arg key_source "$key_source" \
+  --argjson probed_paths "$probed_paths" \
   --argjson bytes_s2 "$bytes_s2" \
   --argjson min_bytes_gate "$min_bytes" \
   --argjson gate_passed "$gate_passed" \
@@ -126,7 +133,7 @@ report_json="$(jq -n \
     warm_index_root: $warm_index_root,
     warm_index_disk: { avail_bytes: $warm_index_avail_bytes },
     north_star_fit: "research ingest / warm-index corpus (PH-RES-1 — resume-safe state, proof-before-perf)",
-    s2_api_key: { status: $key_status, source: $key_source },
+    s2_api_key: { status: $key_status, source: $key_source, probed_paths: $probed_paths },
     bytes: { s2: $bytes_s2, min_bytes_gate: $min_bytes_gate },
     gate_passed: $gate_passed,
     blocker: (if $blocker == "" then null else $blocker end),
