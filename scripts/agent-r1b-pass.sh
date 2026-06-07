@@ -79,6 +79,24 @@ gate_exit=0
 bash "$SCRIPT_DIR/r1b-gate.sh" >/dev/null 2>&1 || gate_exit=$?
 
 require_cmd jq
+
+phase_s2="blocked"
+if [[ "$bytes_s2" -ge "$min_bytes" ]]; then
+  phase_s2="done"
+elif [[ "$key_status" == "present" ]]; then
+  phase_s2="in_progress"
+fi
+
+state_exists=false
+manifest_exists=false
+[[ -f "${WARM_INDEX_STAGING}/.ingest-run-state.json" ]] && state_exists=true
+[[ -f "${WARM_INDEX_STAGING}/manifest.json" ]] && manifest_exists=true
+
+blocker=""
+if [[ "$gate_passed" == false && "$key_status" == "missing" ]]; then
+  blocker="S2_API_KEY unset — wire secret per deploy/k8s/README.md or issue #6"
+fi
+
 report_json="$(jq -n \
   --arg run_id "$RUN_ID" \
   --arg updated_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
@@ -91,6 +109,10 @@ report_json="$(jq -n \
   --argjson discover_exit "$discover_exit" \
   --argjson ingest_exit "$ingest_exit" \
   --argjson gate_exit "$gate_exit" \
+  --arg phase_s2 "$phase_s2" \
+  --argjson state_exists "$state_exists" \
+  --argjson manifest_exists "$manifest_exists" \
+  --arg blocker "$blocker" \
   '{
     agent_run_id: $run_id,
     updated_at: $updated_at,
@@ -98,6 +120,15 @@ report_json="$(jq -n \
     s2_api_key: { status: $key_status, source: $key_source },
     bytes: { s2: $bytes_s2, min_bytes_gate: $min_bytes_gate },
     gate_passed: $gate_passed,
+    blocker: (if $blocker == "" then null else $blocker end),
+    phase_checklist: {
+      branch: "done",
+      runner: "done",
+      s2_abstracts: $phase_s2,
+      state: (if $state_exists then "done" else "pending" end),
+      manifest: (if $manifest_exists then "done" else "pending" end),
+      runbook: "done"
+    },
     exits: { discover: $discover_exit, ingest: $ingest_exit, gate: $gate_exit }
   }')"
 

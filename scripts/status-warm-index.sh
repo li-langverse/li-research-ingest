@@ -58,6 +58,11 @@ if command -v du >/dev/null 2>&1; then
     | sed 's/^/  /' || true
 fi
 
+if command -v df >/dev/null 2>&1 && [[ -d "$WARM_INDEX_ROOT" ]]; then
+  printf '\nFilesystem (warm-index mount):\n'
+  df -h "$WARM_INDEX_ROOT" 2>/dev/null | sed 's/^/  /' || true
+fi
+
 if [[ "$bytes_s2" -lt "$MIN_BYTES" ]]; then
   printf '\nR1b gate: NOT MET (%s / %s bytes)\n' "$bytes_s2" "$MIN_BYTES"
   if [[ "$key_status" == "missing" ]]; then
