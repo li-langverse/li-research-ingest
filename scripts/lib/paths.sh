@@ -80,16 +80,24 @@ _s2_api_key_candidate_paths() {
   fi
   # Isolated agent workspace (li-cursor-agents repo-workflow clone).
   if [[ -n "${LI_REPO_WORKFLOW_WORKSPACE:-}" ]]; then
-    local ws_parent ws_grandparent
+    local ws_parent ws_grandparent ws_org
     ws_parent="$(dirname "$LI_REPO_WORKFLOW_WORKSPACE")"
     ws_grandparent="$(dirname "$ws_parent")"
+    ws_org="$(dirname "$ws_grandparent")"
     printf '%s\n' \
       "${ws_parent}/.secrets/s2-api-key" \
       "${ws_parent}/.secrets/S2_API_KEY" \
       "${ws_parent}/.secrets/li-research/s2-api-key" \
       "${ws_grandparent}/.secrets/s2-api-key" \
-      "${ws_grandparent}/.secrets/li-research/s2-api-key"
+      "${ws_grandparent}/.secrets/li-research/s2-api-key" \
+      "${ws_org}/.secrets/s2-api-key" \
+      "${ws_org}/.secrets/S2_API_KEY" \
+      "${ws_org}/.secrets/li-research/s2-api-key"
   fi
+  # Homelab host paths (engine pod bind-mount or operator drop-in).
+  printf '%s\n' \
+    /srv/homelab/nvme/li-research/.secrets/s2-api-key \
+    /srv/homelab/intenso-research/li-research/.secrets/s2-api-key
   # Control plane / cursor-agents drop-in (org supervisor secrets).
   if [[ -n "${LI_CURSOR_AGENTS_ROOT:-}" ]]; then
     printf '%s\n' \
