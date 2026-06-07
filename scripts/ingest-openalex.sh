@@ -86,7 +86,7 @@ tmp_json="$(mktemp "${TMPDIR:-/tmp}/openalex-page.XXXXXX.json")"
 trap 'rm -f "$tmp_json" "$tmp_json.part"' EXIT
 
 while :; do
-  if [[ "$MAX_PAGES" -gt 0 && "$page_num" -ge $((pages_done + MAX_PAGES)) ]]; then
+  if [[ "$MAX_PAGES" -gt 0 && $((page_num - pages_done)) -ge "$MAX_PAGES" ]]; then
     log "reached max-pages=${MAX_PAGES}"
     break
   fi
