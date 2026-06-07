@@ -28,7 +28,7 @@ _count_data_files() {
     echo 0
     return
   fi
-  find "$dir" -type f \( -name '*.gz' -o -name '*.jsonl' -o -name '*.jsonl.gz' -o -name '*.parquet' -o -name '*.xml' \) 2>/dev/null | wc -l | tr -d ' '
+  find "$dir" -type f \( -name '*.gz' -o -name '*.jsonl' -o -name '*.jsonl.gz' -o -name 'works-*.jsonl' -o -name '*.parquet' -o -name '*.xml' \) 2>/dev/null | wc -l | tr -d ' '
 }
 
 _s2_release_marker() {
@@ -75,12 +75,23 @@ write_ingest_run_state() {
 
   local bytes_s2 bytes_arxiv bytes_total min_bytes gate_passed
   local s2_root="${WARM_INDEX_STAGING}/s2"
+  local bytes_openalex ingest_mode
   bytes_s2="$(_dir_bytes "$s2_root")"
   bytes_arxiv="$(_dir_bytes "$ARXIV_OUTPUT_DIR")"
-  bytes_total=$((bytes_s2 + bytes_arxiv))
+  bytes_openalex="$(_dir_bytes "${OPENALEX_OUTPUT_DIR:-${WARM_INDEX_STAGING}/openalex}")"
+  ingest_mode="${WARM_INGEST_MODE:-s2}"
+  if [[ "$ingest_mode" == "public" ]]; then
+    bytes_total=$((bytes_openalex + bytes_arxiv))
+  else
+    bytes_total=$((bytes_s2 + bytes_arxiv + bytes_openalex))
+  fi
   min_bytes="${WARM_INGEST_MIN_BYTES:-1073741824}"
   gate_passed=false
-  if (( bytes_s2 >= min_bytes )); then
+  if [[ "$ingest_mode" == "public" ]]; then
+    if (( bytes_openalex + bytes_arxiv >= min_bytes )); then
+      gate_passed=true
+    fi
+  elif (( bytes_s2 >= min_bytes )); then
     gate_passed=true
   fi
 
@@ -92,20 +103,24 @@ write_ingest_run_state() {
     agent_run_id="$(basename "$(dirname "$LI_REPO_WORKFLOW_WORKSPACE")")"
   fi
 
-  local s2_abs_status s2_pap_status arx_status
-  local abs_files pap_files arx_files
+  local s2_abs_status s2_pap_status arx_status oa_status
+  local abs_files pap_files arx_files oa_files
   s2_abs_status=$(_s2_release_marker abstracts "$S2_ABSTRACTS_DIR")
   s2_pap_status=$(_s2_release_marker papers "$S2_PAPERS_DIR")
   arx_status=$(_arxiv_status)
+  oa_status=$(_openalex_status)
   abs_files=$(_count_data_files "$S2_ABSTRACTS_DIR")
   pap_files=$(_count_data_files "$S2_PAPERS_DIR")
   arx_files=$(_count_data_files "$ARXIV_OUTPUT_DIR")
+  oa_files=$(_count_data_files "${OPENALEX_OUTPUT_DIR:-${WARM_INDEX_STAGING}/openalex}")
 
   jq -n \
     --arg updated_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
     --arg warm_index_root "$WARM_INDEX_ROOT" \
+    --arg ingest_mode "$ingest_mode" \
     --argjson bytes_s2 "$bytes_s2" \
     --argjson bytes_arxiv "$bytes_arxiv" \
+    --argjson bytes_openalex "$bytes_openalex" \
     --argjson bytes_total "$bytes_total" \
     --argjson min_bytes_gate "$min_bytes" \
     --argjson gate_passed "$gate_passed" \
@@ -114,13 +129,16 @@ write_ingest_run_state() {
     --arg s2_abstracts_status "$s2_abs_status" \
     --arg s2_papers_status "$s2_pap_status" \
     --arg arxiv_status "$arx_status" \
+    --arg openalex_status "$oa_status" \
     --argjson s2_abstracts_files "$abs_files" \
     --argjson s2_papers_files "$pap_files" \
     --argjson arxiv_files "$arx_files" \
+    --argjson openalex_files "$oa_files" \
     '{
       updated_at: $updated_at,
       warm_index_root: $warm_index_root,
-      bytes: { s2: $bytes_s2, arxiv: $bytes_arxiv, total: $bytes_total },
+      ingest_mode: $ingest_mode,
+      bytes: { s2: $bytes_s2, arxiv: $bytes_arxiv, openalex: $bytes_openalex, total: $bytes_total },
       min_bytes_gate: $min_bytes_gate,
       gate_passed: $gate_passed,
       s2_api_key: $s2_api_key,
@@ -128,7 +146,8 @@ write_ingest_run_state() {
       datasets: {
         s2_abstracts: { status: $s2_abstracts_status, files: $s2_abstracts_files },
         s2_papers: { status: $s2_papers_status, files: $s2_papers_files },
-        arxiv_oai: { status: $arxiv_status, files: $arxiv_files }
+        arxiv_oai: { status: $arxiv_status, files: $arxiv_files },
+        openalex_works: { status: $openalex_status, files: $openalex_files }
       }
     }' >"$INGEST_STATE_FILE"
 
@@ -165,6 +184,7 @@ write_staging_manifest() {
   add_partition_files "$S2_ABSTRACTS_DIR" "s2_abstracts"
   add_partition_files "$S2_PAPERS_DIR" "s2_papers"
   add_partition_files "$ARXIV_OUTPUT_DIR" "arxiv_oai"
+  add_partition_files "${OPENALEX_OUTPUT_DIR:-${WARM_INDEX_STAGING}/openalex}" "openalex_works"
 
   local joined=""
   if [[ "${#entries[@]}" -gt 0 ]]; then
@@ -191,4 +211,20 @@ write_staging_manifest() {
 s2_bytes() {
   local s2_root="${WARM_INDEX_STAGING}/s2"
   _dir_bytes "$s2_root"
+}
+
+public_index_bytes() {
+  local oa="${OPENALEX_OUTPUT_DIR:-${WARM_INDEX_STAGING}/openalex}"
+  echo $(($(_dir_bytes "$oa") + $(_dir_bytes "$ARXIV_OUTPUT_DIR")))
+}
+
+_openalex_status() {
+  local oa="${OPENALEX_OUTPUT_DIR:-${WARM_INDEX_STAGING}/openalex}"
+  if [[ -f "$oa/.openalex-harvest-complete.ok" ]]; then
+    echo complete
+  elif [[ "$(_count_data_files "$oa")" -gt 0 ]]; then
+    echo partial
+  else
+    echo pending
+  fi
 }

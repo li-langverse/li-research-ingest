@@ -79,6 +79,16 @@ while [[ $# -gt 0 ]]; do
 done
 
 export WARM_INGEST_MIN_BYTES="$MIN_BYTES"
+reload_s2_api_key || true
+
+if [[ "${WARM_INGEST_MODE:-}" == "public" ]] || { [[ -z "${S2_API_KEY:-}" ]] && [[ "${WARM_INGEST_FORCE_S2:-}" != "1" ]]; }; then
+  pub_args=()
+  [[ "$BOOTSTRAP" -eq 1 ]] && pub_args+=(--bootstrap)
+  pub_args+=(--min-bytes "$MIN_BYTES")
+  [[ "$MAX_S2_FILES" -gt 0 ]] && pub_args+=(--max-openalex-pages "$MAX_S2_FILES")
+  log "public ingest path — run-public-ingest.sh (no S2_API_KEY)"
+  exec bash "$SCRIPT_DIR/run-public-ingest.sh" "${pub_args[@]}"
+fi
 
 if [[ "$BOOTSTRAP" -eq 1 ]]; then
   write_bootstrap_marker

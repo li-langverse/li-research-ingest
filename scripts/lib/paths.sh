@@ -158,6 +158,12 @@ export ARXIV_METADATA_PREFIX="${ARXIV_METADATA_PREFIX:-$(toml_section_value arxi
 export ARXIV_OUTPUT_DIR="${ARXIV_OUTPUT_DIR:-${WARM_INDEX_STAGING}/arxiv}"
 export ARXIV_REQUEST_INTERVAL="${ARXIV_REQUEST_INTERVAL:-$(toml_section_value arxiv request_interval_sec)}"
 
+export OPENALEX_API_BASE="${OPENALEX_API_BASE:-$(toml_section_value openalex api_base)}"
+export OPENALEX_WORKS_FILTER="${OPENALEX_WORKS_FILTER:-$(toml_section_value openalex works_filter)}"
+export OPENALEX_PER_PAGE="${OPENALEX_PER_PAGE:-$(toml_section_value openalex per_page)}"
+export OPENALEX_OUTPUT_DIR="${OPENALEX_OUTPUT_DIR:-${WARM_INDEX_STAGING}/openalex}"
+export OPENALEX_REQUEST_INTERVAL_SEC="${OPENALEX_REQUEST_INTERVAL_SEC:-$(toml_section_value openalex request_interval_sec)}"
+
 export LIDB_SCHEMA_MIGRATION="${LIDB_SCHEMA_MIGRATION:-$(toml_section_value lidb schema_migration)}"
 export LIDB_LOADER_STUB_DIR="${LIDB_LOADER_STUB_DIR:-${WARM_INDEX_STAGING}/lidb-load}"
 
@@ -168,6 +174,7 @@ ensure_staging_tree() {
     "$S2_PAPERS_DIR" \
     "$S2_CITATIONS_DIR" \
     "$ARXIV_OUTPUT_DIR" \
+    "$OPENALEX_OUTPUT_DIR" \
     "$LIDB_LOADER_STUB_DIR"
 }
 
