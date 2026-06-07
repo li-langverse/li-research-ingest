@@ -72,6 +72,7 @@ jq -e '
   and (.exits.ingest | type) == "number"
   and (.exits.gate | type) == "number"
   and (.north_star_fit | type) == "string"
+  and (.warm_index_disk.avail_bytes | type) == "number"
 ' "$report_file" >/dev/null || {
   echo "test-agent-r1b-report: FAIL — JSON schema validation failed" >&2
   cat "$report_file" >&2

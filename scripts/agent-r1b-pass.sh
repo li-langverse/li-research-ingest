@@ -97,6 +97,12 @@ if [[ "$gate_passed" == false && "$key_status" == "missing" ]]; then
   blocker="S2_API_KEY unset — wire secret per deploy/k8s/README.md or issue #6"
 fi
 
+warm_index_avail_bytes=0
+if [[ -d "$WARM_INDEX_ROOT" ]] && command -v df >/dev/null 2>&1; then
+  warm_index_avail_bytes="$(df -B1 --output=avail "$WARM_INDEX_ROOT" 2>/dev/null | tail -1 | tr -d '[:space:]')"
+  warm_index_avail_bytes="${warm_index_avail_bytes:-0}"
+fi
+
 report_json="$(jq -n \
   --arg run_id "$RUN_ID" \
   --arg updated_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
@@ -113,10 +119,12 @@ report_json="$(jq -n \
   --argjson state_exists "$state_exists" \
   --argjson manifest_exists "$manifest_exists" \
   --arg blocker "$blocker" \
+  --argjson warm_index_avail_bytes "$warm_index_avail_bytes" \
   '{
     agent_run_id: $run_id,
     updated_at: $updated_at,
     warm_index_root: $warm_index_root,
+    warm_index_disk: { avail_bytes: $warm_index_avail_bytes },
     north_star_fit: "research ingest / warm-index corpus (PH-RES-1 — resume-safe state, proof-before-perf)",
     s2_api_key: { status: $key_status, source: $key_source },
     bytes: { s2: $bytes_s2, min_bytes_gate: $min_bytes_gate },
