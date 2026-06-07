@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - cursor/li-research-r1b
+      - cursor/li-research-r0
+      - main
+  pull_request:
+    branches:
+      - cursor/li-research-r1b
+      - cursor/li-research-r0
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Shell syntax + TypeScript tests
+        run: npm test
+
+      - name: R0 smoke gate (layout)
+        run: |
+          mkdir -p /tmp/warm-index/staging/s2/abstracts
+          date -u +"%Y-%m-%dT%H:%M:%SZ" >/tmp/warm-index/staging/.ingest-bootstrap-ok
+          WARM_INDEX_PATH=/tmp/warm-index LI_RESEARCH_INGEST_ROOT="$PWD" bash scripts/smoke-gate.sh
+
+      - name: S2 key discovery (expect missing in CI)
+        run: bash scripts/discover-s2-key.sh || test "$?" -eq 1

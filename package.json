@@ -1,0 +1,25 @@
+{
+  "name": "@li-langverse/li-research-ingest",
+  "version": "0.3.0-r1b",
+  "description": "Li research warm-index bulk ingest — R1b orchestrator + S2/arXiv staging",
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "bin": {
+    "li-research-ingest": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "bash scripts/check-shell.sh && npm run build && node --test dist/**/*.test.js",
+    "smoke-gate": "bash scripts/smoke-gate.sh",
+    "r1b-gate": "bash scripts/r1b-gate.sh",
+    "preflight-r1b": "bash scripts/preflight-r1b.sh",
+    "gate-loop": "bash scripts/gate-loop.sh --once"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.20",
+    "typescript": "^5.9.3"
+  }
+}

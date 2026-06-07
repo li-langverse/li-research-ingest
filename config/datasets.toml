@@ -1,0 +1,30 @@
+# Warm-index dataset paths — mounted on engine pod at /warm-index
+# Host: /srv/homelab/intenso-research/li-research/warm-index (second Intenso)
+
+[warm_index]
+root = "/warm-index"
+staging = "/warm-index/staging"
+bootstrap_marker = "/warm-index/staging/.ingest-bootstrap-ok"
+
+[s2]
+api_base = "https://api.semanticscholar.org/datasets/v1"
+release = "latest"
+# Set S2_API_KEY in the environment (Vault later). Required for full corpus downloads.
+
+[s2.paths]
+abstracts = "/warm-index/staging/s2/abstracts"
+papers = "/warm-index/staging/s2/papers"
+citations = "/warm-index/staging/s2/citations"
+
+[arxiv]
+oai_endpoint = "http://export.arxiv.org/oai2"
+metadata_prefix = "arXiv"
+# CS + ML OAI sets (see https://arxiv.org/help/oa)
+sets = ["cs:cs:AI", "cs:cs:LG", "cs:cs:CL", "stat:stat:ML"]
+output = "/warm-index/staging/arxiv"
+# arXiv policy: at most one OAI request every 3 seconds
+request_interval_sec = 3
+
+[lidb]
+schema_migration = "006_research.sql"
+loader_stub = "/warm-index/staging/lidb-load"
