@@ -1,6 +1,6 @@
 # Engine pod — R1b warm ingest wiring
 
-## Verified state (code_implementer-1780821138771)
+## Verified state (code_implementer-1780824180627)
 
 Live `deployment/li-research-ingest` in `li-swarm` mounts `/warm-index` and `/workspace` but **does not** mount `S2_API_KEY` yet. Ingest scripts probe `/run/secrets/s2-api-key` — absent until the patch below is applied.
 

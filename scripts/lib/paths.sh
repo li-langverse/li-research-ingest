@@ -90,6 +90,13 @@ _s2_api_key_candidate_paths() {
       "${ws_grandparent}/.secrets/s2-api-key" \
       "${ws_grandparent}/.secrets/li-research/s2-api-key"
   fi
+  # Control plane / cursor-agents drop-in (org supervisor secrets).
+  if [[ -n "${LI_CURSOR_AGENTS_ROOT:-}" ]]; then
+    printf '%s\n' \
+      "${LI_CURSOR_AGENTS_ROOT}/.secrets/s2-api-key" \
+      "${LI_CURSOR_AGENTS_ROOT}/.secrets/S2_API_KEY" \
+      "${LI_CURSOR_AGENTS_ROOT}/.secrets/li-research/s2-api-key"
+  fi
   # Common K8s / Vault mount paths on the engine pod (no env required).
   printf '%s\n' \
     /run/secrets/s2-api-key \

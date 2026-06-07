@@ -77,7 +77,7 @@ gate_exit=0
 bash "$SCRIPT_DIR/r1b-gate.sh" >/dev/null 2>&1 || gate_exit=$?
 
 require_cmd jq
-jq -n \
+report_json="$(jq -n \
   --arg run_id "$RUN_ID" \
   --arg updated_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
   --arg warm_index_root "$WARM_INDEX_ROOT" \
@@ -97,7 +97,14 @@ jq -n \
     bytes: { s2: $bytes_s2, min_bytes_gate: $min_bytes_gate },
     gate_passed: $gate_passed,
     exits: { discover: $discover_exit, ingest: $ingest_exit, gate: $gate_exit }
-  }'
+  }')"
+
+printf '%s\n' "$report_json"
+
+agent_report_file="${WARM_INDEX_STAGING}/.agent-r1b-report.json"
+if printf '%s\n' "$report_json" >"$agent_report_file" 2>/dev/null; then
+  log "agent report: $agent_report_file"
+fi
 
 if [[ "$gate_exit" -eq 0 ]]; then
   exit 0
