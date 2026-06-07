@@ -37,3 +37,6 @@ jobs:
 
       - name: S2 key discovery (expect missing in CI)
         run: bash scripts/discover-s2-key.sh || test "$?" -eq 1
+
+      - name: R1b gate fixture (temp warm-index, no network)
+        run: bash scripts/test-r1b-gate-fixture.sh

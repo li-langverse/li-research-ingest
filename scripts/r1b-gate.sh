@@ -32,9 +32,11 @@ fail() {
 }
 
 test -d "$INGEST/.git" || fail "missing git repo at $INGEST"
-git -C "$INGEST" show-ref --verify --quiet "refs/remotes/origin/${BRANCH}" \
-  || git -C "$INGEST" show-ref --verify --quiet "refs/heads/${BRANCH}" \
-  || fail "branch ${BRANCH} not found"
+if [[ "${R1B_GATE_SKIP_BRANCH:-}" != 1 ]]; then
+  git -C "$INGEST" show-ref --verify --quiet "refs/remotes/origin/${BRANCH}" \
+    || git -C "$INGEST" show-ref --verify --quiet "refs/heads/${BRANCH}" \
+    || fail "branch ${BRANCH} not found"
+fi
 test -f "$INGEST/config/datasets.toml" || fail "missing config/datasets.toml"
 test -f "$INGEST/scripts/ingest-s2-abstracts.sh" || fail "missing ingest-s2-abstracts.sh"
 test -f "$INGEST/scripts/run-warm-ingest.sh" || test -f "$INGEST/scripts/ingest-all.sh" \
