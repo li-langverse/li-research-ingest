@@ -107,6 +107,16 @@ if [[ -d "$warm_secrets_dir" && -w "$warm_secrets_dir" ]]; then
   warm_secrets_writable=true
 fi
 
+li_secrets_dir="${LI_SECRETS_DIR:-}"
+li_secrets_exists=false
+li_secrets_writable=false
+li_secrets_has_key=false
+if [[ -n "$li_secrets_dir" ]]; then
+  [[ -d "$li_secrets_dir" ]] && li_secrets_exists=true
+  [[ -d "$li_secrets_dir" && -w "$li_secrets_dir" ]] && li_secrets_writable=true
+  [[ -f "${li_secrets_dir}/s2-api-key" ]] && li_secrets_has_key=true
+fi
+
 gate_exit=0
 bash "$SCRIPT_DIR/r1b-gate.sh" >/dev/null 2>&1 || gate_exit=$?
 
@@ -157,6 +167,10 @@ report_json="$(jq -n \
   --argjson min_bytes_gate "$min_bytes" \
   --argjson gate_passed "$gate_passed" \
   --argjson warm_secrets_writable "$warm_secrets_writable" \
+  --arg li_secrets_dir "$li_secrets_dir" \
+  --argjson li_secrets_exists "$li_secrets_exists" \
+  --argjson li_secrets_writable "$li_secrets_writable" \
+  --argjson li_secrets_has_key "$li_secrets_has_key" \
   --argjson discover_exit "$discover_exit" \
   --argjson ingest_exit "$ingest_exit" \
   --argjson gate_exit "$gate_exit" \
@@ -181,6 +195,12 @@ report_json="$(jq -n \
     },
     bytes: { s2: $bytes_s2, arxiv: $bytes_arxiv, total: ($bytes_s2 + $bytes_arxiv), min_bytes_gate: $min_bytes_gate },
     warm_secrets_dropin: { path: ($warm_index_root + "/.secrets/s2-api-key"), writable: $warm_secrets_writable },
+    li_secrets_dir: {
+      path: (if $li_secrets_dir == "" then null else $li_secrets_dir end),
+      exists: $li_secrets_exists,
+      writable: $li_secrets_writable,
+      has_s2_key: $li_secrets_has_key
+    },
     gate_passed: $gate_passed,
     blocker: (if $blocker == "" then null else $blocker end),
     phase_checklist: {

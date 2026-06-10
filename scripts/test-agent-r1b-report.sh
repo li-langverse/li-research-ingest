@@ -64,6 +64,9 @@ jq -e '
   and (.bytes.total | type) == "number"
   and (.bytes.min_bytes_gate | type) == "number"
   and (.warm_secrets_dropin.writable | type) == "boolean"
+  and (.li_secrets_dir.exists | type) == "boolean"
+  and (.li_secrets_dir.writable | type) == "boolean"
+  and (.li_secrets_dir.has_s2_key | type) == "boolean"
   and (.s2_api_key.status | type) == "string"
   and (.s2_api_key.configured_file | type) == "string" or .s2_api_key.configured_file == null
   and (.s2_api_key.configured_file_empty | type) == "boolean"
