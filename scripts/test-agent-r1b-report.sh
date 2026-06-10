@@ -32,6 +32,8 @@ export WARM_INGEST_MIN_BYTES=1073741824
 export LI_RESEARCH_INGEST_ROOT="$REPO_ROOT"
 export LI_AGENT_RUN_ID=test-agent-r1b-report
 export R1B_GATE_SKIP_BRANCH=1
+# Supervisor sets LI_GOAL_SELF_UNBLOCK=1 globally; fixture must not poll 300s for S2 key.
+unset LI_GOAL_SELF_UNBLOCK AGENT_R1B_WAIT_KEY_SEC UNBLOCK_R1B_WAIT_KEY_SEC
 
 # shellcheck source=lib/paths.sh
 source "$SCRIPT_DIR/lib/paths.sh"
