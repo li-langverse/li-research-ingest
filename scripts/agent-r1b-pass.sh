@@ -52,13 +52,22 @@ export LI_RESEARCH_INGEST_ROOT="$REPO_ROOT"
 
 key_status="missing"
 key_source=""
+configured_file="${S2_API_KEY_FILE:-}"
+configured_file_empty=false
 probed_paths=0
 empty_dir_mounts=0
 while IFS= read -r _path; do
   [[ -z "$_path" ]] && continue
   probed_paths=$((probed_paths + 1))
   if [[ -d "$_path" && ! -f "$_path" ]]; then
-    empty_dir_mounts=$((empty_dir_mounts + 1))
+    dir_files="$(find "$_path" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | wc -l | tr -d '[:space:]')"
+    dir_files="${dir_files:-0}"
+    if [[ "$dir_files" -eq 0 ]]; then
+      empty_dir_mounts=$((empty_dir_mounts + 1))
+      if [[ -n "$configured_file" && "$_path" == "$configured_file" ]]; then
+        configured_file_empty=true
+      fi
+    fi
   fi
 done < <(_s2_api_key_candidate_paths | awk '!seen[$0]++')
 
@@ -105,7 +114,9 @@ manifest_exists=false
 blocker=""
 if [[ "$gate_passed" == false && "$key_status" == "missing" ]]; then
   blocker="S2_API_KEY unset — wire secret per deploy/k8s/README.md or issue #6"
-  if [[ "$empty_dir_mounts" -gt 0 ]]; then
+  if [[ "$configured_file_empty" == true ]]; then
+    blocker="S2_API_KEY_FILE=${configured_file} mounted but empty — apply deploy/k8s/s2-api-key-secret.yaml"
+  elif [[ "$empty_dir_mounts" -gt 0 ]]; then
     blocker="${blocker} (${empty_dir_mounts} empty K8s secret dir mount(s) — apply s2-api-key-secret.yaml)"
   fi
 fi
@@ -122,6 +133,8 @@ report_json="$(jq -n \
   --arg warm_index_root "$WARM_INDEX_ROOT" \
   --arg key_status "$key_status" \
   --arg key_source "$key_source" \
+  --arg configured_file "$configured_file" \
+  --argjson configured_file_empty "$configured_file_empty" \
   --argjson probed_paths "$probed_paths" \
   --argjson empty_dir_mounts "$empty_dir_mounts" \
   --argjson bytes_s2 "$bytes_s2" \
@@ -141,7 +154,14 @@ report_json="$(jq -n \
     warm_index_root: $warm_index_root,
     warm_index_disk: { avail_bytes: $warm_index_avail_bytes },
     north_star_fit: "research ingest / warm-index corpus (PH-RES-1 — resume-safe state, proof-before-perf)",
-    s2_api_key: { status: $key_status, source: $key_source, probed_paths: $probed_paths, empty_dir_mounts: $empty_dir_mounts },
+    s2_api_key: {
+      status: $key_status,
+      source: $key_source,
+      configured_file: (if $configured_file == "" then null else $configured_file end),
+      configured_file_empty: $configured_file_empty,
+      probed_paths: $probed_paths,
+      empty_dir_mounts: $empty_dir_mounts
+    },
     bytes: { s2: $bytes_s2, min_bytes_gate: $min_bytes_gate },
     gate_passed: $gate_passed,
     blocker: (if $blocker == "" then null else $blocker end),

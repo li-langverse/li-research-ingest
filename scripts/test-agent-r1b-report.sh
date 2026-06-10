@@ -62,6 +62,8 @@ jq -e '
   and (.bytes.s2 | type) == "number"
   and (.bytes.min_bytes_gate | type) == "number"
   and (.s2_api_key.status | type) == "string"
+  and (.s2_api_key.configured_file | type) == "string" or .s2_api_key.configured_file == null
+  and (.s2_api_key.configured_file_empty | type) == "boolean"
   and (.s2_api_key.probed_paths | type) == "number"
   and (.s2_api_key.probed_paths >= 1)
   and (.s2_api_key.empty_dir_mounts | type) == "number"

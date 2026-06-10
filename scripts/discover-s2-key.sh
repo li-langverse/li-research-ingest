@@ -35,6 +35,20 @@ if [[ "$QUIET" -eq 0 ]]; then
   printf 'S2 key discovery (%s)\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 fi
 
+configured_file="${S2_API_KEY_FILE:-}"
+if [[ -n "$configured_file" && ! -f "$configured_file" ]]; then
+  if [[ -d "$configured_file" ]]; then
+    dir_files="$(find "$configured_file" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | wc -l | tr -d '[:space:]')"
+    dir_files="${dir_files:-0}"
+    if [[ "$dir_files" -eq 0 && "$QUIET" -eq 0 ]]; then
+      printf '  configured S2_API_KEY_FILE=%s — empty directory mount (K8s secret not applied)\n' "$configured_file"
+      printf '        fix: kubectl apply -f deploy/k8s/s2-api-key-secret.yaml -n %s\n' "${LI_GOAL_NAMESPACE:-li-swarm}"
+    fi
+  elif [[ "$QUIET" -eq 0 ]]; then
+    printf '  configured S2_API_KEY_FILE=%s — path missing\n' "$configured_file"
+  fi
+fi
+
 if [[ -n "${S2_API_KEY:-}" ]]; then
   src="env"
   [[ -n "${S2_API_KEY_FILE:-}" ]] && src="file:${S2_API_KEY_FILE}"
