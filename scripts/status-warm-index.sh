@@ -50,6 +50,8 @@ if [[ -f "$INGEST_STATE_FILE" ]]; then
     "$INGEST_STATE_FILE" 2>/dev/null || true
   jq -r 'if .agent_run_id then "  agent_run_id: \(.agent_run_id)" else empty end' \
     "$INGEST_STATE_FILE" 2>/dev/null || true
+  jq -r 'if .blocker then "  blocker:     \(.blocker)" else empty end' \
+    "$INGEST_STATE_FILE" 2>/dev/null || true
 fi
 
 if command -v du >/dev/null 2>&1; then

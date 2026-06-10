@@ -87,6 +87,23 @@ write_ingest_run_state() {
   local s2_key_status="missing"
   [[ -n "${S2_API_KEY:-}" ]] && s2_key_status="present"
 
+  local configured_file="${S2_API_KEY_FILE:-}"
+  local configured_file_empty=false
+  if [[ -n "$configured_file" && -d "$configured_file" && ! -f "$configured_file" ]]; then
+    local dir_files
+    dir_files="$(find "$configured_file" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | wc -l | tr -d '[:space:]')"
+    dir_files="${dir_files:-0}"
+    [[ "$dir_files" -eq 0 ]] && configured_file_empty=true
+  fi
+
+  local blocker=""
+  if [[ "$gate_passed" == false && "$s2_key_status" == "missing" ]]; then
+    blocker="S2_API_KEY unset — wire secret per deploy/k8s/README.md or issue #6"
+    if [[ "$configured_file_empty" == true ]]; then
+      blocker="S2_API_KEY_FILE=${configured_file} mounted but empty — apply deploy/k8s/s2-api-key-secret.yaml"
+    fi
+  fi
+
   local agent_run_id="${LI_AGENT_RUN_ID:-}"
   if [[ -z "$agent_run_id" && -n "${LI_REPO_WORKFLOW_WORKSPACE:-}" ]]; then
     agent_run_id="$(basename "$(dirname "$LI_REPO_WORKFLOW_WORKSPACE")")"
@@ -110,6 +127,9 @@ write_ingest_run_state() {
     --argjson min_bytes_gate "$min_bytes" \
     --argjson gate_passed "$gate_passed" \
     --arg s2_api_key "$s2_key_status" \
+    --arg s2_api_key_file "$configured_file" \
+    --argjson configured_file_empty "$configured_file_empty" \
+    --arg blocker "$blocker" \
     --arg agent_run_id "$agent_run_id" \
     --arg s2_abstracts_status "$s2_abs_status" \
     --arg s2_papers_status "$s2_pap_status" \
@@ -124,6 +144,9 @@ write_ingest_run_state() {
       min_bytes_gate: $min_bytes_gate,
       gate_passed: $gate_passed,
       s2_api_key: $s2_api_key,
+      s2_api_key_file: (if $s2_api_key_file == "" then null else $s2_api_key_file end),
+      configured_file_empty: $configured_file_empty,
+      blocker: (if $blocker == "" then null else $blocker end),
       agent_run_id: (if $agent_run_id == "" then null else $agent_run_id end),
       datasets: {
         s2_abstracts: { status: $s2_abstracts_status, files: $s2_abstracts_files },
