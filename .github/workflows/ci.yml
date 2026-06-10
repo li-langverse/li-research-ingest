@@ -56,6 +56,9 @@ jobs:
       - name: S2 key org env fixture (temp li/.env.github, no network)
         run: bash scripts/test-s2-key-org-env-fixture.sh
 
+      - name: S2 key cursor-agents env fixture (temp li/.env.github, no network)
+        run: bash scripts/test-s2-key-cursor-agents-env-fixture.sh
+
       - name: S2 key warm-index persist fixture (temp dir, no network)
         run: bash scripts/test-s2-key-persist-fixture.sh
 

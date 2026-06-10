@@ -64,6 +64,7 @@ _s2_env_file_candidate_paths() {
   if [[ -n "${LI_CURSOR_AGENTS_ROOT:-}" ]]; then
     printf '%s\n' \
       "${LI_CURSOR_AGENTS_ROOT}/../.env.github" \
+      "${LI_CURSOR_AGENTS_ROOT}/li/.env.github" \
       "${LI_CURSOR_AGENTS_ROOT}/.env"
   fi
   if [[ -n "${LI_GOAL_WORKSPACE:-}" ]]; then
