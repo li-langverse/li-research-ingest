@@ -69,6 +69,8 @@ if [[ "${#ARXIV_SETS[@]}" -eq 0 ]]; then
   exit 1
 fi
 
+arxiv_backfill_markers ARXIV_SETS
+
 if arxiv_sets_all_complete ARXIV_SETS; then
   log "skip arXiv OAI — all configured sets complete"
   exit 0

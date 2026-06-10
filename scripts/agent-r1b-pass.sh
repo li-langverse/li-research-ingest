@@ -83,8 +83,10 @@ if [[ "$discover_exit" -eq 0 ]]; then
   key_source="${S2_API_KEY_FILE:-env}"
 fi
 
-ingest_args=(--resume)
+ingest_args=(--resume --skip-arxiv)
 [[ "$WAIT_FOR_KEY_SEC" -gt 0 ]] && ingest_args+=(--wait-for-key "$WAIT_FOR_KEY_SEC")
+
+export INGEST_MANIFEST_SKIP_SHA=1
 
 ingest_exit=0
 bash "$SCRIPT_DIR/run-warm-ingest.sh" "${ingest_args[@]}" || ingest_exit=$?

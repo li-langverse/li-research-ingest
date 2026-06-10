@@ -13,10 +13,11 @@ source "$SCRIPT_DIR/lib/ingest-state.sh"
 
 usage() {
   cat <<'EOF'
-Usage: run-warm-ingest.sh [--bootstrap] [--resume] [--min-bytes N] [--max-s2-files N] [--wait-for-key SEC]
+Usage: run-warm-ingest.sh [--bootstrap] [--resume] [--skip-arxiv] [--min-bytes N] [--max-s2-files N] [--wait-for-key SEC]
 
   --bootstrap       Layout only + bootstrap marker (no downloads)
   --resume          Skip completed phases (default)
+  --skip-arxiv      Skip arXiv OAI phase (use when S2 gate is the blocker)
   --min-bytes N     Target bytes under staging/s2 before continuing (default: WARM_INGEST_MIN_BYTES or 1 GiB)
   --max-s2-files N  Cap S2 partition downloads per dataset (smoke / partial)
   --wait-for-key SEC  Poll S2_API_KEY / S2_API_KEY_FILE for up to SEC seconds before phase 1
@@ -32,6 +33,7 @@ EOF
 }
 
 BOOTSTRAP=0
+SKIP_ARXIV=0
 MAX_S2_FILES=0
 WAIT_FOR_KEY_SEC=0
 MIN_BYTES="${WARM_INGEST_MIN_BYTES:-1073741824}"
@@ -54,6 +56,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --bootstrap) BOOTSTRAP=1; shift ;;
     --resume) shift ;;
+    --skip-arxiv) SKIP_ARXIV=1; shift ;;
     --min-bytes)
       MIN_BYTES="${2:?--min-bytes requires a number}"
       shift 2
@@ -80,10 +83,15 @@ done
 
 export WARM_INGEST_MIN_BYTES="$MIN_BYTES"
 
+maybe_write_manifest() {
+  [[ "$SKIP_ARXIV" -eq 1 ]] && return 0
+  write_staging_manifest
+}
+
 if [[ "$BOOTSTRAP" -eq 1 ]]; then
   write_bootstrap_marker
   write_ingest_run_state
-  write_staging_manifest
+  maybe_write_manifest
   exit 0
 fi
 
@@ -161,7 +169,7 @@ run_s2_abstracts_until_gate() {
 log "=== phase 1: S2 abstracts (target >= ${MIN_BYTES} bytes) ==="
 run_s2_abstracts_until_gate || true
 write_ingest_run_state
-write_staging_manifest
+maybe_write_manifest
 
 log "=== phase 2: S2 papers metadata ==="
 if [[ -n "${S2_API_KEY:-}" ]]; then
@@ -172,12 +180,16 @@ else
   log "skip S2 papers — S2_API_KEY not set"
 fi
 write_ingest_run_state
-write_staging_manifest
+maybe_write_manifest
 
-log "=== phase 3: arXiv CS/ML OAI ==="
-bash "$SCRIPT_DIR/ingest-arxiv-oai.sh" || log "arXiv OAI phase failed (continuing)"
+if [[ "$SKIP_ARXIV" -eq 1 ]]; then
+  log "=== phase 3: arXiv CS/ML OAI (skipped — --skip-arxiv) ==="
+else
+  log "=== phase 3: arXiv CS/ML OAI ==="
+  bash "$SCRIPT_DIR/ingest-arxiv-oai.sh" || log "arXiv OAI phase failed (continuing)"
+fi
 write_ingest_run_state
-write_staging_manifest
+maybe_write_manifest
 
 bytes_final="$(s2_bytes)"
 log "warm ingest finished — staging/s2=${bytes_final} bytes (gate=${MIN_BYTES})"

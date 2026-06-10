@@ -171,7 +171,9 @@ write_staging_manifest() {
     while IFS= read -r -d '' file; do
       rel="${file#${WARM_INDEX_STAGING}/}"
       size="$(stat -c '%s' "$file" 2>/dev/null || echo 0)"
-      if command -v sha256sum >/dev/null 2>&1; then
+      if [[ "${INGEST_MANIFEST_SKIP_SHA:-}" == 1 ]]; then
+        sha=""
+      elif command -v sha256sum >/dev/null 2>&1; then
         sha="$(sha256sum "$file" | awk '{print $1}')"
       else
         sha=""

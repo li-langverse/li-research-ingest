@@ -76,6 +76,33 @@ for el in root.iter():
 PY
 }
 
+arxiv_backfill_markers() {
+  local sets_ref_name="$1"
+  local -n sets_ref="$sets_ref_name"
+  local set_spec safe_name marker out_file records
+
+  for set_spec in "${sets_ref[@]}"; do
+    set_spec="$(printf '%s' "$set_spec" | xargs)"
+    [[ -z "$set_spec" ]] && continue
+    safe_name="$(printf '%s' "$set_spec" | tr ':/' '__')"
+    marker="$ARXIV_OUTPUT_DIR/.${safe_name}.ok"
+    out_file="$ARXIV_OUTPUT_DIR/${safe_name}.xml"
+    [[ -f "$marker" || ! -f "$out_file" || ! -s "$out_file" ]] && continue
+
+    records="$(oai_count_records "$out_file" 2>/dev/null || echo 0)"
+    records=$((records + 0))
+    [[ "$records" -le 0 ]] && continue
+
+    {
+      echo "set=$set_spec"
+      echo "records=$records"
+      echo "completed_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+      echo "backfilled=true"
+    } >"$marker"
+    log "backfilled arXiv marker for $set_spec ($records records)"
+  done
+}
+
 arxiv_sets_all_complete() {
   local sets_ref_name="$1"
   local -n sets_ref="$sets_ref_name"
