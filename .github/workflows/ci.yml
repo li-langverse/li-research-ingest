@@ -44,6 +44,9 @@ jobs:
       - name: R1b agent report schema (temp warm-index, no network)
         run: bash scripts/test-agent-r1b-report.sh
 
+      - name: R1b agent self-unblock wait fixture (temp warm-index, no network)
+        run: bash scripts/test-agent-r1b-self-unblock-fixture.sh
+
       - name: S2 key dir mount fixture (temp secret dir, no network)
         run: bash scripts/test-s2-key-dir-fixture.sh
 

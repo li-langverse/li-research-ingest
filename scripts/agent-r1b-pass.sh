@@ -24,6 +24,10 @@ EOF
 }
 
 WAIT_FOR_KEY_SEC="${AGENT_R1B_WAIT_KEY_SEC:-0}"
+# Goal-directed loop (LI_GOAL_SELF_UNBLOCK=1): poll for operator-wired S2 key before ingest.
+if [[ "$WAIT_FOR_KEY_SEC" -eq 0 && "${LI_GOAL_SELF_UNBLOCK:-}" == 1 ]]; then
+  WAIT_FOR_KEY_SEC="${UNBLOCK_R1B_WAIT_KEY_SEC:-${LI_GOAL_LOOP_SLEEP_SEC:-300}}"
+fi
 RUN_ID="${LI_AGENT_RUN_ID:-}"
 if [[ -z "$RUN_ID" && -n "${LI_REPO_WORKFLOW_WORKSPACE:-}" ]]; then
   RUN_ID="$(basename "$(dirname "$LI_REPO_WORKFLOW_WORKSPACE")")"
@@ -84,7 +88,10 @@ if [[ "$discover_exit" -eq 0 ]]; then
 fi
 
 ingest_args=(--resume --skip-arxiv)
-[[ "$WAIT_FOR_KEY_SEC" -gt 0 ]] && ingest_args+=(--wait-for-key "$WAIT_FOR_KEY_SEC")
+if [[ "$WAIT_FOR_KEY_SEC" -gt 0 ]]; then
+  ingest_args+=(--wait-for-key "$WAIT_FOR_KEY_SEC")
+  log "self-unblock: polling for S2_API_KEY up to ${WAIT_FOR_KEY_SEC}s (LI_GOAL_SELF_UNBLOCK=${LI_GOAL_SELF_UNBLOCK:-0})"
+fi
 
 export INGEST_MANIFEST_SKIP_SHA=1
 
