@@ -96,6 +96,13 @@ if [[ "$QUIET" -eq 0 && "$empty_dirs" -gt 0 ]]; then
   printf '\n  note: %d empty directory mount(s) — K8s secret projected but file missing\n' "$empty_dirs"
   printf '        apply deploy/k8s/s2-api-key-secret.yaml + li-research-ingest-s2-patch.yaml\n'
 fi
-[[ "$QUIET" -eq 0 ]] && printf '\n  unblock: export S2_API_KEY=... or mount secret at one of the paths above\n'
-[[ "$QUIET" -eq 0 ]] && printf '           https://www.semanticscholar.org/product/api\n'
+if [[ "$QUIET" -eq 0 ]]; then
+  warm_secrets_dir="${WARM_INDEX_ROOT}/.secrets"
+  if [[ -d "$warm_secrets_dir" && -w "$warm_secrets_dir" ]]; then
+    printf '\n  warm-index drop-in (writable): %s/s2-api-key\n' "$warm_secrets_dir"
+    printf '        S2_API_KEY=... ./scripts/install-homelab-s2-secret.sh --dir %s\n' "$warm_secrets_dir"
+  fi
+  printf '\n  unblock: export S2_API_KEY=... or mount secret at one of the paths above\n'
+  printf '           https://www.semanticscholar.org/product/api\n'
+fi
 exit 1
