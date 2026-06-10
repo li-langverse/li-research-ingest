@@ -76,6 +76,10 @@ if [[ "$bytes_s2" -lt "$MIN_BYTES" ]]; then
         printf '  blocker:   S2_API_KEY_FILE=%s mounted but empty (apply deploy/k8s/s2-api-key-secret.yaml)\n' "$configured_file"
       fi
     fi
+    warm_secrets_dir="${WARM_INDEX_ROOT}/.secrets"
+    if [[ -d "$warm_secrets_dir" && -w "$warm_secrets_dir" ]]; then
+      printf '  drop-in:   S2_API_KEY=... ./scripts/install-homelab-s2-secret.sh --dir %s\n' "$warm_secrets_dir"
+    fi
     printf '  unblock: export S2_API_KEY=... or S2_API_KEY_FILE=/path/to/secret\n'
     printf '           ./scripts/verify-s2-key.sh && ./scripts/run-warm-ingest.sh --resume\n'
   else

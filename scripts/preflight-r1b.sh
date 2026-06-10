@@ -35,6 +35,12 @@ if [[ "$failures" -eq 0 ]]; then
 fi
 
 printf '\nR1b preflight: %s check(s) failed — see output above\n' "$failures"
+# shellcheck source=lib/paths.sh
+source "$SCRIPT_DIR/lib/paths.sh"
+warm_secrets_dir="${WARM_INDEX_ROOT}/.secrets"
+if [[ -d "$warm_secrets_dir" && -w "$warm_secrets_dir" ]]; then
+  printf 'Drop-in: S2_API_KEY=... ./scripts/install-homelab-s2-secret.sh --dir %s\n' "$warm_secrets_dir"
+fi
 printf 'Unblock: export S2_API_KEY=... or mount at S2_API_KEY_FILE / LI_SECRETS_DIR/s2-api-key\n'
 printf '         ./scripts/verify-s2-key.sh && ./scripts/run-warm-ingest.sh --resume\n'
 exit 1
