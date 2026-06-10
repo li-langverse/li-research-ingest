@@ -21,7 +21,7 @@ kubectl rollout restart deployment/li-research-ingest -n li-swarm
 
 Use the files below when patching a **live** deployment without re-applying the full li-cursor-agents manifest.
 
-## Verified state (code_implementer-1781072050660)
+## Verified state (code_implementer-1781073499203)
 
 Live pod mounts `/warm-index` (~808 GiB avail) and `S2_API_KEY_FILE=/run/secrets/s2-api-key` as an **empty directory** — secret YAML not applied or placeholder not replaced. `LI_SECRETS_DIR=/srv/homelab/li-research/secrets` is also empty. Ingest scripts probe file mounts and projected-secret directories (`paths.sh` reads `…/s2-api-key` inside dir mounts). `discover-s2-key.sh` now surfaces the configured-but-empty mount at the top of its output.
 
@@ -31,8 +31,9 @@ Live pod mounts `/warm-index` (~808 GiB avail) and `S2_API_KEY_FILE=/run/secrets
 | `scripts/run-warm-ingest.sh` on branch | OK |
 | `staging/.ingest-run-state.json` | OK (`gate_passed: false`) |
 | `staging/s2/` bytes | 31,680 (sample only; need ≥ 1 GiB) |
-| arXiv OAI (4 sets) | OK (~8.5 GiB, 2,363 files) |
-| `S2_API_KEY` / secret mount | **missing** (empty dir at `/run/secrets/s2-api-key`) |
+| arXiv OAI (4 sets) | OK (~8.0 GiB, 2,363 files) |
+| `S2_API_KEY` / secret mount | **missing** (empty dir at `/run/secrets/s2-api-key`; issue #6 closed but secret not applied) |
+| `LI_SECRETS_DIR` homelab drop-in | empty (`/srv/homelab/li-research/secrets`) |
 | Phase checklist (agent-r1b-pass) | branch/runner/state/manifest/runbook done; s2_abstracts blocked |
 
 ## Unblock (operator)
