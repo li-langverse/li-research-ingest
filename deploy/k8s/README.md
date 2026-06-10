@@ -21,7 +21,7 @@ kubectl rollout restart deployment/li-research-ingest -n li-swarm
 
 Use the files below when patching a **live** deployment without re-applying the full li-cursor-agents manifest.
 
-## Verified state (code_implementer-1781083373908)
+## Verified state (code_implementer-1781083888494)
 
 Live pod mounts `/warm-index` (~808 GiB avail) and `S2_API_KEY_FILE=/run/secrets/s2-api-key` as an **empty directory** — secret YAML not applied or placeholder not replaced. `LI_SECRETS_DIR=/srv/homelab/li-research/secrets` is also empty. Ingest scripts probe file mounts and projected-secret directories (`paths.sh` reads `…/s2-api-key` inside dir mounts). `discover-s2-key.sh` now surfaces the configured-but-empty mount at the top of its output.
 
