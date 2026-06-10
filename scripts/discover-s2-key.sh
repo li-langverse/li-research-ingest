@@ -48,7 +48,7 @@ fi
 [[ "$QUIET" -eq 0 ]] && printf '  probed paths:\n'
 while IFS= read -r path; do
   [[ -z "$path" ]] && continue
-  if [[ -r "$path" ]]; then
+  if [[ -f "$path" ]]; then
     [[ "$QUIET" -eq 0 ]] && printf '    [readable] %s\n' "$path"
   else
     [[ "$QUIET" -eq 0 ]] && printf '    [absent]   %s\n' "$path"

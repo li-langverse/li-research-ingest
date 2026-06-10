@@ -131,7 +131,7 @@ reload_s2_api_key() {
   local path
   while IFS= read -r path; do
     [[ -z "$path" ]] && continue
-    if [[ -r "$path" ]]; then
+    if [[ -f "$path" ]]; then
       S2_API_KEY="$(tr -d '[:space:]' <"$path")"
       export S2_API_KEY
       export S2_API_KEY_FILE="$path"

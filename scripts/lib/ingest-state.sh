@@ -138,8 +138,8 @@ write_ingest_run_state() {
 write_staging_manifest() {
   require_cmd jq
 
-  local entries=()
-  local dir kind file rel sha size
+  local manifest_parts file rel sha size partition_count
+  manifest_parts="$(mktemp "${TMPDIR:-/tmp}/li-manifest-parts.XXXXXX")"
 
   add_partition_files() {
     local scan_dir="$1"
@@ -153,39 +153,47 @@ write_staging_manifest() {
       else
         sha=""
       fi
-      entries+=("$(jq -nc \
+      jq -nc \
         --arg kind "$scan_kind" \
         --arg path "$rel" \
         --arg sha256 "$sha" \
         --argjson bytes "$size" \
-        '{kind: $kind, path: $path, sha256: $sha256, bytes: $bytes}')")
+        '{kind: $kind, path: $path, sha256: $sha256, bytes: $bytes}' >>"$manifest_parts"
     done < <(find "$scan_dir" -type f \( -name '*.gz' -o -name '*.jsonl' -o -name '*.jsonl.gz' -o -name '*.parquet' -o -name '*.xml' \) -print0 2>/dev/null)
   }
 
+  : >"$manifest_parts"
   add_partition_files "$S2_ABSTRACTS_DIR" "s2_abstracts"
   add_partition_files "$S2_PAPERS_DIR" "s2_papers"
   add_partition_files "$ARXIV_OUTPUT_DIR" "arxiv_oai"
 
-  local joined=""
-  if [[ "${#entries[@]}" -gt 0 ]]; then
-    joined="$(printf '%s\n' "${entries[@]}" | jq -s '.')"
+  partition_count="$(wc -l <"$manifest_parts" | tr -d '[:space:]')"
+  partition_count="${partition_count:-0}"
+
+  if [[ "$partition_count" -gt 0 ]]; then
+    jq -s \
+      --arg generated_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+      --arg warm_index_root "$WARM_INDEX_ROOT" \
+      '{
+        generated_at: $generated_at,
+        warm_index_root: $warm_index_root,
+        partition_count: length,
+        partitions: .
+      }' "$manifest_parts" >"$INGEST_MANIFEST_FILE"
   else
-    joined="[]"
+    jq -n \
+      --arg generated_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+      --arg warm_index_root "$WARM_INDEX_ROOT" \
+      '{
+        generated_at: $generated_at,
+        warm_index_root: $warm_index_root,
+        partition_count: 0,
+        partitions: []
+      }' >"$INGEST_MANIFEST_FILE"
   fi
 
-  jq -n \
-    --arg generated_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-    --arg warm_index_root "$WARM_INDEX_ROOT" \
-    --argjson partitions "$joined" \
-    --argjson partition_count "$(printf '%s' "$joined" | jq 'length')" \
-    '{
-      generated_at: $generated_at,
-      warm_index_root: $warm_index_root,
-      partition_count: $partition_count,
-      partitions: $partitions
-    }' >"$INGEST_MANIFEST_FILE"
-
-  log "staging manifest: $INGEST_MANIFEST_FILE (${#entries[@]} partitions)"
+  rm -f "$manifest_parts"
+  log "staging manifest: $INGEST_MANIFEST_FILE (${partition_count} partitions)"
 }
 
 s2_bytes() {
