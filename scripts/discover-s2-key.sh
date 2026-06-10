@@ -59,6 +59,19 @@ if [[ -n "${S2_API_KEY:-}" ]]; then
 fi
 
 [[ "$QUIET" -eq 0 ]] && printf '  status: missing\n'
+[[ "$QUIET" -eq 0 ]] && printf '  probed env files:\n'
+while IFS= read -r path; do
+  [[ -z "$path" ]] && continue
+  if [[ -f "$path" ]]; then
+    if grep -qE '^[[:space:]]*S2_API_KEY=' "$path" 2>/dev/null; then
+      [[ "$QUIET" -eq 0 ]] && printf '    [has-key]  %s\n' "$path"
+    else
+      [[ "$QUIET" -eq 0 ]] && printf '    [no-key]   %s\n' "$path"
+    fi
+  else
+    [[ "$QUIET" -eq 0 ]] && printf '    [absent]   %s\n' "$path"
+  fi
+done < <(_s2_env_file_candidate_paths | awk '!seen[$0]++')
 [[ "$QUIET" -eq 0 ]] && printf '  probed paths:\n'
 empty_dirs=0
 while IFS= read -r path; do

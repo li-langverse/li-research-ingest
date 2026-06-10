@@ -50,6 +50,45 @@ toml_array_values() {
   ' "$DATASETS_CONFIG"
 }
 
+# Shared env files (li/.env.github, supervisor drop-in) — probed before file mounts.
+_s2_env_file_candidate_paths() {
+  if [[ -n "${LI_RESEARCH_S2_ENV_FILE:-}" ]]; then
+    printf '%s\n' "$LI_RESEARCH_S2_ENV_FILE"
+  fi
+  if [[ -n "${LI_GITHUB_ENV:-}" ]]; then
+    printf '%s\n' "$LI_GITHUB_ENV"
+  fi
+  if [[ -n "${LI_SHARED_ENV:-}" ]]; then
+    printf '%s\n' "$LI_SHARED_ENV"
+  fi
+  if [[ -n "${LI_CURSOR_AGENTS_ROOT:-}" ]]; then
+    printf '%s\n' \
+      "${LI_CURSOR_AGENTS_ROOT}/../.env.github" \
+      "${LI_CURSOR_AGENTS_ROOT}/.env"
+  fi
+  if [[ -n "${LI_GOAL_WORKSPACE:-}" ]]; then
+    printf '%s\n' \
+      "${LI_GOAL_WORKSPACE}/.env.github" \
+      "${LI_GOAL_WORKSPACE}/.env" \
+      "${LI_GOAL_WORKSPACE}/li/.env.github"
+  fi
+}
+
+_read_s2_key_from_env_file() {
+  local env_file="$1"
+  [[ -f "$env_file" ]] || return 1
+  local line val
+  line="$(grep -E '^[[:space:]]*S2_API_KEY=' "$env_file" 2>/dev/null | tail -1 || true)"
+  [[ -n "$line" ]] || return 1
+  val="${line#*=}"
+  val="$(printf '%s' "$val" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+  [[ -n "$val" ]] || return 1
+  S2_API_KEY="$val"
+  export S2_API_KEY
+  export S2_API_KEY_FILE="$env_file"
+  return 0
+}
+
 # Load S2_API_KEY from a mounted secret file when env var is unset (engine pod / Vault).
 _s2_api_key_candidate_paths() {
   if [[ -n "${S2_API_KEY_FILE:-}" ]]; then
@@ -175,6 +214,12 @@ reload_s2_api_key() {
     return 0
   fi
   local path
+  while IFS= read -r path; do
+    [[ -z "$path" ]] && continue
+    if _read_s2_key_from_env_file "$path"; then
+      return 0
+    fi
+  done < <(_s2_env_file_candidate_paths | awk '!seen[$0]++')
   while IFS= read -r path; do
     [[ -z "$path" ]] && continue
     if _read_s2_key_from_path "$path"; then
