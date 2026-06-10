@@ -15,6 +15,7 @@ trap cleanup EXIT
 unset S2_API_KEY S2_API_KEY_FILE
 export S2_API_KEY=test-homelab-key-12345
 export LI_SECRETS_DIR="$FIXTURE_DIR/secrets"
+export WARM_INDEX_PATH="$FIXTURE_DIR/warm-index"
 
 bash "$SCRIPT_DIR/install-homelab-s2-secret.sh"
 

@@ -53,5 +53,8 @@ jobs:
       - name: S2 key org env fixture (temp li/.env.github, no network)
         run: bash scripts/test-s2-key-org-env-fixture.sh
 
+      - name: S2 key warm-index persist fixture (temp dir, no network)
+        run: bash scripts/test-s2-key-persist-fixture.sh
+
       - name: Homelab S2 secret install fixture (temp dir, no network)
         run: bash scripts/test-install-homelab-s2-secret.sh

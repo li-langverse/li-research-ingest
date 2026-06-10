@@ -217,8 +217,36 @@ _read_s2_key_from_path() {
   return 1
 }
 
+# When S2_API_KEY is present in env (not yet on disk), persist to warm-index drop-in
+# so later agent runs / gate-loop iterations survive process restarts.
+persist_s2_api_key_dropin() {
+  [[ -n "${S2_API_KEY:-}" ]] || return 0
+  local warm_root="${WARM_INDEX_ROOT:-${WARM_INDEX_PATH:-}}"
+  [[ -n "$warm_root" ]] || return 0
+  local dropin_dir="${warm_root}/.secrets"
+  local dropin_file="${dropin_dir}/s2-api-key"
+  if [[ ! -d "$dropin_dir" ]]; then
+    mkdir -p "$dropin_dir" 2>/dev/null || return 0
+    chmod 0700 "$dropin_dir" 2>/dev/null || true
+  fi
+  [[ -d "$dropin_dir" && -w "$dropin_dir" ]] || return 0
+  if [[ -f "$dropin_file" ]]; then
+    return 0
+  fi
+  # Skip when key was already loaded from the drop-in or another file path.
+  if [[ -n "${S2_API_KEY_FILE:-}" && -f "${S2_API_KEY_FILE}" ]]; then
+    return 0
+  fi
+  umask 077
+  printf '%s' "$S2_API_KEY" >"$dropin_file"
+  chmod 600 "$dropin_file"
+  export S2_API_KEY_FILE="$dropin_file"
+  printf '[li-research-ingest] persisted S2_API_KEY to warm-index drop-in: %s\n' "$dropin_file" >&2
+}
+
 reload_s2_api_key() {
   if [[ -n "${S2_API_KEY:-}" ]]; then
+    persist_s2_api_key_dropin
     return 0
   fi
   local path
@@ -234,7 +262,11 @@ reload_s2_api_key() {
       return 0
     fi
   done < <(_s2_api_key_candidate_paths | awk '!seen[$0]++')
-  [[ -n "${S2_API_KEY:-}" ]]
+  if [[ -n "${S2_API_KEY:-}" ]]; then
+    persist_s2_api_key_dropin
+    return 0
+  fi
+  return 1
 }
 
 reload_s2_api_key || true
