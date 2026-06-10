@@ -124,6 +124,52 @@ _s2_api_key_candidate_paths() {
     /etc/secrets/s2-api-key
 }
 
+# Read key material from a file path or K8s projected-secret directory mount.
+_read_s2_key_from_path() {
+  local path="$1"
+  [[ -z "$path" ]] && return 1
+
+  if [[ -f "$path" ]]; then
+    S2_API_KEY="$(tr -d '[:space:]' <"$path")"
+    export S2_API_KEY
+    export S2_API_KEY_FILE="$path"
+    [[ -n "${S2_API_KEY:-}" ]]
+    return
+  fi
+
+  if [[ ! -d "$path" ]]; then
+    return 1
+  fi
+
+  local candidate inner
+  for candidate in s2-api-key api-key key S2_API_KEY token; do
+    inner="$path/$candidate"
+    if [[ -f "$inner" ]]; then
+      S2_API_KEY="$(tr -d '[:space:]' <"$inner")"
+      export S2_API_KEY
+      export S2_API_KEY_FILE="$inner"
+      [[ -n "${S2_API_KEY:-}" ]]
+      return
+    fi
+  done
+
+  # Last resort: single non-hidden file in a projected secret dir.
+  local -a dir_files=()
+  while IFS= read -r -d '' inner; do
+    dir_files+=("$inner")
+  done < <(find "$path" -maxdepth 1 -type f ! -name '.*' -print0 2>/dev/null)
+  if [[ "${#dir_files[@]}" -eq 1 ]]; then
+    inner="${dir_files[0]}"
+    S2_API_KEY="$(tr -d '[:space:]' <"$inner")"
+    export S2_API_KEY
+    export S2_API_KEY_FILE="$inner"
+    [[ -n "${S2_API_KEY:-}" ]]
+    return
+  fi
+
+  return 1
+}
+
 reload_s2_api_key() {
   if [[ -n "${S2_API_KEY:-}" ]]; then
     return 0
@@ -131,10 +177,7 @@ reload_s2_api_key() {
   local path
   while IFS= read -r path; do
     [[ -z "$path" ]] && continue
-    if [[ -f "$path" ]]; then
-      S2_API_KEY="$(tr -d '[:space:]' <"$path")"
-      export S2_API_KEY
-      export S2_API_KEY_FILE="$path"
+    if _read_s2_key_from_path "$path"; then
       return 0
     fi
   done < <(_s2_api_key_candidate_paths | awk '!seen[$0]++')

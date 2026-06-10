@@ -52,8 +52,14 @@ while IFS= read -r path; do
   if [[ -f "$path" ]]; then
     [[ "$QUIET" -eq 0 ]] && printf '    [readable] %s\n' "$path"
   elif [[ -d "$path" ]]; then
-    empty_dirs=$((empty_dirs + 1))
-    [[ "$QUIET" -eq 0 ]] && printf '    [empty-dir] %s\n' "$path"
+    dir_files="$(find "$path" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | wc -l | tr -d '[:space:]')"
+    dir_files="${dir_files:-0}"
+    if [[ "$dir_files" -gt 0 ]]; then
+      [[ "$QUIET" -eq 0 ]] && printf '    [dir-files]  %s (%s file(s))\n' "$path" "$dir_files"
+    else
+      empty_dirs=$((empty_dirs + 1))
+      [[ "$QUIET" -eq 0 ]] && printf '    [empty-dir] %s\n' "$path"
+    fi
   else
     [[ "$QUIET" -eq 0 ]] && printf '    [absent]   %s\n' "$path"
   fi
