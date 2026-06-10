@@ -160,7 +160,9 @@ _s2_api_key_candidate_paths() {
     printf '%s\n' \
       "${LI_CURSOR_AGENTS_ROOT}/.secrets/s2-api-key" \
       "${LI_CURSOR_AGENTS_ROOT}/.secrets/S2_API_KEY" \
-      "${LI_CURSOR_AGENTS_ROOT}/.secrets/li-research/s2-api-key"
+      "${LI_CURSOR_AGENTS_ROOT}/.secrets/li-research/s2-api-key" \
+      "${LI_CURSOR_AGENTS_ROOT}/data/secrets/s2-api-key" \
+      "${LI_CURSOR_AGENTS_ROOT}/data/secrets/li-research/s2-api-key"
   fi
   # Common K8s / Vault mount paths on the engine pod (no env required).
   printf '%s\n' \
