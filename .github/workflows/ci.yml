@@ -46,3 +46,6 @@ jobs:
 
       - name: S2 key dir mount fixture (temp secret dir, no network)
         run: bash scripts/test-s2-key-dir-fixture.sh
+
+      - name: Homelab S2 secret install fixture (temp dir, no network)
+        run: bash scripts/test-install-homelab-s2-secret.sh
