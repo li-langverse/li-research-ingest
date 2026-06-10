@@ -64,6 +64,8 @@ jq -e '
   and (.s2_api_key.status | type) == "string"
   and (.s2_api_key.probed_paths | type) == "number"
   and (.s2_api_key.probed_paths >= 1)
+  and (.s2_api_key.empty_dir_mounts | type) == "number"
+  and (.s2_api_key.empty_dir_mounts >= 0)
   and (.phase_checklist.branch == "done")
   and (.phase_checklist.runner == "done")
   and (.phase_checklist.s2_abstracts | IN("blocked", "in_progress", "done", "pending"))
