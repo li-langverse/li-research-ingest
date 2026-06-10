@@ -114,10 +114,12 @@ manifest_exists=false
 [[ -f "${WARM_INDEX_STAGING}/manifest.json" ]] && manifest_exists=true
 
 blocker=""
+warm_secrets_dropin="${WARM_INDEX_ROOT}/.secrets/s2-api-key"
 if [[ "$gate_passed" == false && "$key_status" == "missing" ]]; then
   blocker="S2_API_KEY unset — wire secret per deploy/k8s/README.md or issue #6"
   if [[ "$configured_file_empty" == true ]]; then
     blocker="S2_API_KEY_FILE=${configured_file} mounted but empty — apply deploy/k8s/s2-api-key-secret.yaml"
+    blocker="${blocker}; or drop key at ${warm_secrets_dropin} (S2_API_KEY=... ./scripts/install-homelab-s2-secret.sh --dir ${WARM_INDEX_ROOT}/.secrets)"
   elif [[ "$empty_dir_mounts" -gt 0 ]]; then
     blocker="${blocker} (${empty_dir_mounts} empty K8s secret dir mount(s) — apply s2-api-key-secret.yaml)"
   fi

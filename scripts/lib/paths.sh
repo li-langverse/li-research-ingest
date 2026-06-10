@@ -212,6 +212,11 @@ ensure_staging_tree() {
     "$S2_CITATIONS_DIR" \
     "$ARXIV_OUTPUT_DIR" \
     "$LIDB_LOADER_STUB_DIR"
+  # Operator drop-in beside staging data (probed by _s2_api_key_candidate_paths).
+  if [[ -n "${WARM_INDEX_ROOT:-}" ]]; then
+    mkdir -p "${WARM_INDEX_ROOT}/.secrets"
+    chmod 0700 "${WARM_INDEX_ROOT}/.secrets" 2>/dev/null || true
+  fi
 }
 
 log() {
