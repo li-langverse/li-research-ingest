@@ -72,6 +72,14 @@ _s2_env_file_candidate_paths() {
       "${LI_GOAL_WORKSPACE}/.env" \
       "${LI_GOAL_WORKSPACE}/li/.env.github"
   fi
+  # Org-level li/.env.github from isolated agent workspace (data/workspaces/<org>/…).
+  if [[ -n "${LI_REPO_WORKFLOW_WORKSPACE:-}" ]]; then
+    local ws_org
+    ws_org="$(dirname "$(dirname "$(dirname "$LI_REPO_WORKFLOW_WORKSPACE")")")"
+    printf '%s\n' \
+      "${ws_org}/li/.env.github" \
+      "${ws_org}/.env.github"
+  fi
 }
 
 _read_s2_key_from_env_file() {
