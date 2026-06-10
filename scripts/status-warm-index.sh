@@ -66,6 +66,14 @@ fi
 if [[ "$bytes_s2" -lt "$MIN_BYTES" ]]; then
   printf '\nR1b gate: NOT MET (%s / %s bytes)\n' "$bytes_s2" "$MIN_BYTES"
   if [[ "$key_status" == "missing" ]]; then
+    configured_file="${S2_API_KEY_FILE:-}"
+    if [[ -n "$configured_file" && -d "$configured_file" && ! -f "$configured_file" ]]; then
+      dir_files="$(find "$configured_file" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | wc -l | tr -d '[:space:]')"
+      dir_files="${dir_files:-0}"
+      if [[ "$dir_files" -eq 0 ]]; then
+        printf '  blocker:   S2_API_KEY_FILE=%s mounted but empty (apply deploy/k8s/s2-api-key-secret.yaml)\n' "$configured_file"
+      fi
+    fi
     printf '  unblock: export S2_API_KEY=... or S2_API_KEY_FILE=/path/to/secret\n'
     printf '           ./scripts/verify-s2-key.sh && ./scripts/run-warm-ingest.sh --resume\n'
   else

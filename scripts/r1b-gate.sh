@@ -57,7 +57,16 @@ if [[ "$BYTES" -lt "$MIN_BYTES" ]]; then
   have="$(_format_bytes "$BYTES")"
   need="$(_format_bytes "$MIN_BYTES")"
   if [[ -z "${S2_API_KEY:-}" ]]; then
-    fail "staging/s2=${have} (need >= ${need}); S2_API_KEY unset — ./scripts/unblock-r1b.sh or export key (issue #6)"
+    blocker="S2_API_KEY unset — ./scripts/unblock-r1b.sh or export key (issue #6)"
+    configured_file="${S2_API_KEY_FILE:-}"
+    if [[ -n "$configured_file" && -d "$configured_file" && ! -f "$configured_file" ]]; then
+      dir_files="$(find "$configured_file" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | wc -l | tr -d '[:space:]')"
+      dir_files="${dir_files:-0}"
+      if [[ "$dir_files" -eq 0 ]]; then
+        blocker="S2_API_KEY_FILE=${configured_file} mounted but empty — apply deploy/k8s/s2-api-key-secret.yaml (issue #6)"
+      fi
+    fi
+    fail "staging/s2=${have} (need >= ${need}); ${blocker}"
   fi
   fail "staging/s2=${have} (need >= ${need}); run ./scripts/run-warm-ingest.sh --resume"
 fi
