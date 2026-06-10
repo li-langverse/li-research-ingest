@@ -92,9 +92,20 @@ ingest_exit=0
 bash "$SCRIPT_DIR/run-warm-ingest.sh" "${ingest_args[@]}" || ingest_exit=$?
 
 bytes_s2="$(s2_bytes)"
+bytes_arxiv=0
+if [[ -d "$ARXIV_OUTPUT_DIR" ]]; then
+  bytes_arxiv="$(du -sb "$ARXIV_OUTPUT_DIR" 2>/dev/null | awk '{print $1}')"
+  bytes_arxiv="${bytes_arxiv:-0}"
+fi
 min_bytes="${WARM_INGEST_MIN_BYTES:-1073741824}"
 gate_passed=false
 [[ "$bytes_s2" -ge "$min_bytes" ]] && gate_passed=true
+
+warm_secrets_writable=false
+warm_secrets_dir="${WARM_INDEX_ROOT}/.secrets"
+if [[ -d "$warm_secrets_dir" && -w "$warm_secrets_dir" ]]; then
+  warm_secrets_writable=true
+fi
 
 gate_exit=0
 bash "$SCRIPT_DIR/r1b-gate.sh" >/dev/null 2>&1 || gate_exit=$?
@@ -142,8 +153,10 @@ report_json="$(jq -n \
   --argjson probed_paths "$probed_paths" \
   --argjson empty_dir_mounts "$empty_dir_mounts" \
   --argjson bytes_s2 "$bytes_s2" \
+  --argjson bytes_arxiv "$bytes_arxiv" \
   --argjson min_bytes_gate "$min_bytes" \
   --argjson gate_passed "$gate_passed" \
+  --argjson warm_secrets_writable "$warm_secrets_writable" \
   --argjson discover_exit "$discover_exit" \
   --argjson ingest_exit "$ingest_exit" \
   --argjson gate_exit "$gate_exit" \
@@ -166,7 +179,8 @@ report_json="$(jq -n \
       probed_paths: $probed_paths,
       empty_dir_mounts: $empty_dir_mounts
     },
-    bytes: { s2: $bytes_s2, min_bytes_gate: $min_bytes_gate },
+    bytes: { s2: $bytes_s2, arxiv: $bytes_arxiv, total: ($bytes_s2 + $bytes_arxiv), min_bytes_gate: $min_bytes_gate },
+    warm_secrets_dropin: { path: ($warm_index_root + "/.secrets/s2-api-key"), writable: $warm_secrets_writable },
     gate_passed: $gate_passed,
     blocker: (if $blocker == "" then null else $blocker end),
     phase_checklist: {

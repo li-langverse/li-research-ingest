@@ -60,7 +60,10 @@ jq -e '
   and (.gate_passed | type) == "boolean"
   and .gate_passed == false
   and (.bytes.s2 | type) == "number"
+  and (.bytes.arxiv | type) == "number"
+  and (.bytes.total | type) == "number"
   and (.bytes.min_bytes_gate | type) == "number"
+  and (.warm_secrets_dropin.writable | type) == "boolean"
   and (.s2_api_key.status | type) == "string"
   and (.s2_api_key.configured_file | type) == "string" or .s2_api_key.configured_file == null
   and (.s2_api_key.configured_file_empty | type) == "boolean"
